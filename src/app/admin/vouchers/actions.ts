@@ -2,6 +2,7 @@
 
 import { supabaseServiceRole } from "@/lib/supabaseServiceRole";
 import { revalidatePath } from "next/cache";
+import { requireAdmin } from "@/lib/adminAuth";
 
 interface VoucherPayload {
   code: string;
@@ -20,9 +21,11 @@ interface AdminActionResponse {
 // HÀM VẠN NĂNG: TỰ ĐỘNG CHUYỂN ĐỔI GIỮA INSERT HOẶC UPDATE THEO KIỂU UPSERT
 export async function saveVoucherAdminAction(
   payload: VoucherPayload, 
-  editingCode: string | null
+  editingCode: string | null,
+  accessToken: string
 ): Promise<AdminActionResponse> {
   try {
+    await requireAdmin(accessToken);
     const databasePayload = {
       code: payload.code.toUpperCase().trim(),
       discount_type: payload.discount_type,
@@ -56,8 +59,9 @@ export async function saveVoucherAdminAction(
 }
 
 // LỆNH TIÊU HỦY VOUCHER KHỎI HỆ THỐNG
-export async function deleteVoucherAdminAction(voucherCode: string): Promise<AdminActionResponse> {
+export async function deleteVoucherAdminAction(voucherCode: string, accessToken: string): Promise<AdminActionResponse> {
   try {
+    await requireAdmin(accessToken);
     const { error } = await supabaseServiceRole
       .from("vouchers")
       .delete()

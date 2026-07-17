@@ -3,25 +3,25 @@
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { 
-  Package, Heart, MapPin, 
-  Settings, Bell, LogOut, LayoutDashboard, Activity 
+import {
+  Package, LogOut, LayoutDashboard, Activity, Layers,
+  MessageSquare, Users, Tag, ShieldAlert
 } from "lucide-react";
 import { Container } from "@/components/layout/container";
 import { supabase } from "@/lib/supabaseClient";
 import { useOverlayStore } from "@/store/useOverlayStore";
 import { cn } from "@/lib/utils";
 
-const ACCOUNT_MENU = [
-  { label: "Bảng Điều Khiển", href: "/account", icon: LayoutDashboard },
-  { label: "Lịch Sử Đơn Hàng", href: "/account/orders", icon: Package },
-  { label: "Sản Phẩm Yêu Thích", href: "/account/wishlist", icon: Heart },
-  { label: "SỔ ĐỊA CHỈ", href: "/account/addresses", icon: MapPin },
-  { label: "Thông Báo", href: "/account/notifications", icon: Bell },
-  { label: "Thiết Lập Bảo Mật", href: "/account/settings", icon: Settings },
+const ADMIN_MENU = [
+  { label: "Tổng Quan", href: "/admin", icon: LayoutDashboard },
+  { label: "Đơn Hàng", href: "/admin/orders", icon: Layers },
+  { label: "Sản Phẩm", href: "/admin/products", icon: Package },
+  { label: "Đánh Giá", href: "/admin/reviews", icon: MessageSquare },
+  { label: "Người Dùng", href: "/admin/users", icon: Users },
+  { label: "Mã Giảm Giá", href: "/admin/vouchers", icon: Tag },
 ];
 
-export default function AccountLayout({ children }: { children: React.ReactNode }) {
+export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { addToast } = useOverlayStore();
@@ -36,13 +36,24 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
     const checkSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
-        router.push("/login");
+        router.replace("/login?next=/admin");
       } else {
         const user = session.user;
+        const { data: profile, error } = await supabase
+          .from("profiles")
+          .select("full_name, avatar_url, lab_position, role")
+          .eq("id", user.id)
+          .single();
+
+        if (error || !profile || !["admin", "super_admin"].includes(profile.role)) {
+          addToast({ title: "TỪ CHỐI TRUY CẬP", description: "Tài khoản không có đặc quyền quản trị.", type: "ERROR" });
+          router.replace("/account");
+          return;
+        }
         setUserEmail(user.email ?? "Cyber_User");
-        setFullName(user.user_metadata?.full_name || "");
-        setAvatarUrl(user.user_metadata?.avatar_url || "");
-        setLabPosition(user.user_metadata?.lab_position || "VERIFIED CLIENT");
+        setFullName(profile.full_name || user.user_metadata?.full_name || "");
+        setAvatarUrl(profile.avatar_url || user.user_metadata?.avatar_url || "");
+        setLabPosition(profile.lab_position || profile.role.toUpperCase());
         setIsCheckingAuth(false);
       }
     };
@@ -55,21 +66,16 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
         setFullName("");
         setAvatarUrl("");
         setLabPosition("");
-        router.push("/login");
-      } else if (session) {
-        const user = session.user;
-        setUserEmail(user.email ?? "Cyber_User");
-        setFullName(user.user_metadata?.full_name || "");
-        setAvatarUrl(user.user_metadata?.avatar_url || "");
-        setLabPosition(user.user_metadata?.lab_position || "VERIFIED CLIENT");
-        setIsCheckingAuth(false);
+        router.replace("/login?next=/admin");
+      } else if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
+        void checkSession();
       }
     });
 
     return () => {
       subscription.unsubscribe();
     };
-  }, [router]);
+  }, [addToast, router]);
 
   //  VÁ LỖI CHÍ MẠNG: Bọc màng an ninh chống crash giao diện khi mất kết nối Cloud
   const handleLogout = async () => {
@@ -151,9 +157,9 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
             </div>
 
             <nav className="glass-card overflow-hidden flex flex-col">
-              {ACCOUNT_MENU.map((item) => {
+              {ADMIN_MENU.map((item) => {
                 const Icon = item.icon;
-                const isActive = pathname === item.href;
+                const isActive = item.href === "/admin" ? pathname === item.href : pathname.startsWith(item.href);
                 return (
                   <Link 
                     key={item.href}
@@ -170,6 +176,9 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
                   </Link>
                 );
               })}
+              <Link href="/account" className="flex items-center gap-3 px-6 py-4 font-mono text-xs uppercase tracking-widest text-text-dark hover:bg-white/5 hover:text-primary-cyan transition-all border-l-2 border-transparent">
+                <ShieldAlert className="w-4 h-4" /> Khu Vực Tài Khoản
+              </Link>
               <button 
                 type="button"
                 onClick={handleLogout}

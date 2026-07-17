@@ -14,12 +14,12 @@ export async function generateStaticParams() {
   try {
     const { data: products } = await supabaseServiceRole
       .from("products")
-      .select("id");
+      .select("slug");
 
     if (!products) return [];
 
     return products.map((prod) => ({
-      slug: String(prod.id),
+      slug: prod.slug,
     }));
   } catch (err) {
     console.error("Gãy luồng tiền biên dịch dữ liệu tĩnh:", err);
@@ -35,11 +35,16 @@ export default async function ProductDetailPage({ params }: PageProps) {
   const { slug } = await params;
 
   // 1. ĐỌC DỮ LIỆU GỐC CỦA MẪU VẬN NẤM TỪ SUPABASE CLOUD
-  const { data: product } = await supabaseServiceRole
+  const { data: product, error: productError } = await supabaseServiceRole
     .from("products")
     .select("*")
-    .eq("id", slug)
+    .eq("slug", slug)
     .maybeSingle();
+
+  if (productError) {
+    console.error("Không thể tải chi tiết sản phẩm từ Supabase:", productError);
+    throw productError;
+  }
 
   if (!product) {
     notFound(); // Đẩy sang trạm gác 404 hỏa tốc nếu sai mã cấu trúc gen nấm
@@ -49,7 +54,7 @@ export default async function ProductDetailPage({ params }: PageProps) {
   const { data: reviews } = await supabaseServiceRole
     .from("reviews")
     .select("*")
-    .eq("product_id", slug)
+    .eq("product_id", product.id)
     .order("created_at", { ascending: false });
 
   // 3. TRA CỨU SẢN PHẨM CÙNG CHỦNG LOẠI SINH HỌC TƯƠNG ĐỒNG
@@ -72,7 +77,7 @@ export default async function ProductDetailPage({ params }: PageProps) {
     in_stock: product.in_stock,
     scientificName: product.scientific_name || "",
     shortDescription: product.short_description || "",
-    slug: product.id,
+    slug: product.slug,
     reviews: (reviews || []).map(r => ({
       id: r.id,
       userName: r.user_name,
@@ -94,8 +99,8 @@ export default async function ProductDetailPage({ params }: PageProps) {
     shortDescription: p.short_description || "",
     
     //  VÁ LỖI CHÍ MẠNG: Bơm đầy đủ lõi thuộc tính định vị để ProductCard khớp lệnh
-    slug: p.id, // Hoặc p.slug nếu DB của Chỉ Huy có cột chuỗi chữ định danh
-    totalReviews: Number(p.rating_count || 0), 
+    slug: p.slug,
+    totalReviews: Number(p.total_reviews || 0),
     tags: p.tags || [] // Nạp mảng tag để hiển thị nhãn Hologram góc trái thẻ
   }));
 

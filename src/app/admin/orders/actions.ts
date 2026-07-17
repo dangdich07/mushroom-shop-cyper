@@ -3,6 +3,7 @@
 import { supabaseServiceRole } from "@/lib/supabaseServiceRole";
 import { OrderStatusType } from "@/types/payment.types";
 import { revalidatePath } from "next/cache";
+import { requireAdmin } from "@/lib/adminAuth";
 
 interface UpdateStatusResponse {
   success: boolean;
@@ -12,12 +13,10 @@ interface UpdateStatusResponse {
 export async function updateOrderStatusAdminAction(
   orderId: string, 
   newStatus: OrderStatusType, 
-  adminId: string
+  accessToken: string
 ): Promise<UpdateStatusResponse> {
-  // GIẢI PHÁP TIÊU HỦY LỖI LINTER: Báo cho ESLint biết biến này đã được đọc hợp lệ
-  void adminId;
-
   try {
+    const admin = await requireAdmin(accessToken);
     let trackingTitle = "";
     let trackingDesc = "";
 
@@ -73,7 +72,8 @@ export async function updateOrderStatusAdminAction(
       .insert({
         order_id: orderId,
         title: trackingTitle,
-        description: trackingDesc
+        description: trackingDesc,
+        actor_id: admin.id
       });
 
     if (trackErr) throw trackErr;
