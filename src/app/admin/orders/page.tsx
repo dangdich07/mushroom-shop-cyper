@@ -95,8 +95,9 @@ export default function AdminOrdersPage() {
   // 3. TRIỆU HỒI SERVER ACTION ĐIỀU PHỐI TRẠNG THÁI SANG CHU TRÌNH LOGISTICS MỚI
   const updateStatusMutation = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: OrderStatusType }) => {
-      if (!currentAdminId) throw new Error("Chưa kiểm toán được token đặc quyền Admin.");
-      const res = await updateOrderStatusAdminAction(id, status, currentAdminId);
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("Chưa kiểm toán được token đặc quyền Admin.");
+      const res = await updateOrderStatusAdminAction(id, status, session.access_token);
       if (!res.success) throw new Error(res.error);
       return status;
     },

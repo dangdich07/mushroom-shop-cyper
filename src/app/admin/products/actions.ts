@@ -2,6 +2,7 @@
 
 import { supabaseServiceRole } from "@/lib/supabaseServiceRole";
 import { revalidatePath } from "next/cache";
+import { requireAdmin } from "@/lib/adminAuth";
 
 interface UpdateProductPayload {
   price: number;
@@ -16,9 +17,11 @@ interface AdminProductResponse {
 // LỆNH ĐIỀU CHỈNH THÔNG SỐ LÂM SÀNG CỦA MẪU NẤM
 export async function updateProductAdminAction(
   productId: string,
-  payload: UpdateProductPayload
+  payload: UpdateProductPayload,
+  accessToken: string
 ): Promise<AdminProductResponse> {
   try {
+    await requireAdmin(accessToken);
     const { error } = await supabaseServiceRole
       .from("products")
       .update({

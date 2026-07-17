@@ -70,7 +70,9 @@ export default function AdminVouchersPage() {
         expiry_date: formData.expiryDate
       };
 
-      const res = await saveVoucherAdminAction(payload, editingVoucherId);
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("Phiên quản trị đã hết hạn.");
+      const res = await saveVoucherAdminAction(payload, editingVoucherId, session.access_token);
       if (!res.success) throw new Error(res.error);
       return true;
     },
@@ -92,7 +94,9 @@ export default function AdminVouchersPage() {
   // 3. MUTATION: TIÊU HỦY MÃ ƯU ĐÃI KHỎI LÕI ĐÁM MÂY QUA SERVER ACTION
   const deleteVoucherMutation = useMutation({
     mutationFn: async (code: string) => {
-      const res = await deleteVoucherAdminAction(code);
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("Phiên quản trị đã hết hạn.");
+      const res = await deleteVoucherAdminAction(code, session.access_token);
       if (!res.success) throw new Error(res.error);
       return true;
     },
@@ -266,7 +270,7 @@ export default function AdminVouchersPage() {
               
               <div className="flex flex-col gap-1.5">
                 <label className="text-text-dark uppercase">Mã kích hoạt Voucher (Duy nhất, viết hoa)</label>
-                <input required type="text" Logan-Secure="true" disabled={!!editingVoucherId} value={formData.code} onChange={(e) => setFormData({...formData, code: e.target.value.toUpperCase()})} placeholder="CYBERMUSH10" className="bg-background-dark border border-white/10 p-2.5 text-text-pure outline-none focus:border-primary-neon font-bold tracking-wider disabled:opacity-40 uppercase" />
+                <input required type="text" disabled={!!editingVoucherId} value={formData.code} onChange={(e) => setFormData({...formData, code: e.target.value.toUpperCase()})} placeholder="CYBERMUSH10" className="bg-background-dark border border-white/10 p-2.5 text-text-pure outline-none focus:border-primary-neon font-bold tracking-wider disabled:opacity-40 uppercase" />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
