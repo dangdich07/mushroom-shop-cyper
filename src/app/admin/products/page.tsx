@@ -64,9 +64,9 @@ export default function AdminProductsPage() {
   const toggleStockMutation = useMutation({
     mutationFn: async ({ id, currentStatus }: { id: string; currentStatus: boolean }) => {
       const { error: err } = await supabase
-        .from("products")
-        .update({ in_stock: !currentStatus })
-        .eq("id", id);
+        .from("product_variants")
+        .update({ is_active: !currentStatus })
+        .eq("product_id", id);
       if (err) throw err;
     },
     onSuccess: () => {

@@ -11,6 +11,7 @@ interface VietQRCardProps {
   grandTotal: number;
   qrUrl: string;
   referenceCode: string;
+  expiresAt: string;
 }
 
 // Cấu trúc mô tả payload an toàn nhận về từ cổng thay đổi Supabase Real-time
@@ -19,7 +20,7 @@ interface RealtimePaymentPayload {
   order_id: string;
 }
 
-export function VietQRCard({ orderId, grandTotal, qrUrl, referenceCode }: VietQRCardProps) {
+export function VietQRCard({ orderId, grandTotal, qrUrl, referenceCode, expiresAt }: VietQRCardProps) {
   const router = useRouter();
   const [copiedField, setCopiedField] = useState<"AMOUNT" | "REF" | null>(null);
   const [timeLeft, setTimeLeft] = useState(900); // 15 phút Lease đếm ngược tính bằng giây
@@ -57,9 +58,13 @@ export function VietQRCard({ orderId, grandTotal, qrUrl, referenceCode }: VietQR
       router.push("/cart?error=TIMEOUT");
       return;
     }
-    const timer = setInterval(() => setTimeLeft((prev) => prev - 1), 1000);
+    const updateCountdown = () => setTimeLeft(
+      Math.max(0, Math.ceil((new Date(expiresAt).getTime() - Date.now()) / 1000)),
+    );
+    updateCountdown();
+    const timer = setInterval(updateCountdown, 1000);
     return () => clearInterval(timer);
-  }, [timeLeft, router]);
+  }, [timeLeft, router, expiresAt]);
 
   const copyToClipboard = (text: string, field: "AMOUNT" | "REF") => {
     navigator.clipboard.writeText(text);

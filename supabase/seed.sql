@@ -259,6 +259,16 @@ set
   in_stock = excluded.in_stock,
   pharmacological_effects = excluded.pharmacological_effects;
 
+-- Demo inventory only. Production stock must be supplied by an approved inventory count.
+update public.products
+set stock_quantity = 25,
+    reserved_quantity = 0
+where id in (
+  'prod-1','prod-2','prod-3','prod-4','prod-5',
+  'prod-6','prod-7','prod-8','prod-9','prod-10',
+  'prod-11','prod-12','prod-13','prod-14','prod-15'
+);
+
 insert into public.reviews (
   id,
   product_id,

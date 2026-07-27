@@ -4,6 +4,7 @@ export type PaymentStatusType = "PENDING" | "WAITING" | "PAID" | "FAILED" | "REF
 
 export interface CheckoutItemPayload {
   productId: string;
+  variantId: string;
   quantity: number;
 }
 
@@ -20,6 +21,8 @@ export interface CheckoutInput {
 export interface ServerActionResponse {
   success: boolean;
   orderId?: string;
+  expiresAt?: string;
+  trackingToken?: string;
   error?: string;
 }
 

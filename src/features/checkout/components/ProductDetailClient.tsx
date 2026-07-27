@@ -13,7 +13,7 @@ import { useCartStore } from "@/store/useCartStore";
 import { useWishlistStore } from "@/store/useWishlistStore";
 import { supabase } from "@/lib/supabaseClient";
 import { formatVND } from "@/lib/utils";
-import { Product } from "@/types/product.types";
+import { Product, ProductVariant } from "@/types/product.types";
 import { cn } from "@/lib/utils";
 
 type TabType = "DESCRIPTION" | "SPECIFICATIONS" | "REVIEWS" | "QA";
@@ -40,6 +40,8 @@ interface ClientProduct {
   slug: string;
   reviews: ClientReview[];
   tags?: string[];
+  variants: ProductVariant[];
+  images: Array<{ url: string; alt: string }>;
 }
 
 interface ProductDetailClientProps {
@@ -55,6 +57,7 @@ export function ProductDetailClient({ initialProduct, relatedProducts }: Product
 
   const [activeTab, setActiveTab] = useState<TabType>("DESCRIPTION");
   const [quantity, setQuantity] = useState(1);
+  const [selectedVariantId, setSelectedVariantId] = useState(initialProduct.variants[0]?.id ?? "");
   const [selectedImage, setSelectedImage] = useState<string>(" ");
 
   const [reviewerName, setReviewerName] = useState("");
@@ -124,17 +127,28 @@ export function ProductDetailClient({ initialProduct, relatedProducts }: Product
   }, [initialProduct]);
 
   const displayImage = selectedImage || initialProduct.image;
+  const selectedVariant = initialProduct.variants.find((variant) => variant.id === selectedVariantId);
+  const availableQuantity = selectedVariant
+    ? selectedVariant.stockQuantity - selectedVariant.reservedQuantity
+    : 0;
   const isFavorite = isInWishlist(initialProduct.id);
 
   const handleAddToCart = () => {
+    if (!selectedVariant || availableQuantity < quantity) {
+      addToast({ title: "KHÔNG KHẢ DỤNG", description: "Biến thể đã chọn không đủ tồn kho.", type: "ERROR" });
+      return;
+    }
     const addFn = cartStore.addItem; //
     if (addFn) {
       addFn({
         id: initialProduct.id,
+        lineId: selectedVariant.id,
+        variantId: selectedVariant.id,
+        variantName: selectedVariant.name,
         name: initialProduct.name,
-        price: initialProduct.price,
+        price: selectedVariant.price,
         image: displayImage,
-        sku: initialProduct.sku
+        sku: selectedVariant.sku
       }, quantity);
       addToast({ title: "GIỎ HÀNG", description: `Đã cấy thêm ${quantity} x ${initialProduct.name} vào khay tiếp nhận.`, type: "SUCCESS" });
     }
@@ -175,6 +189,23 @@ export function ProductDetailClient({ initialProduct, relatedProducts }: Product
           <div className="w-full aspect-square bg-background-dark border border-white/5 overflow-hidden relative">
             <img src={displayImage} alt={initialProduct.name} className="w-full h-full object-cover opacity-80" />
           </div>
+          {initialProduct.images.length > 1 && (
+            <div className="flex gap-2 overflow-x-auto">
+              {initialProduct.images.map((image) => (
+                <button
+                  key={image.url}
+                  type="button"
+                  onClick={() => setSelectedImage(image.url)}
+                  className={cn(
+                    "h-16 w-16 shrink-0 border bg-black/30",
+                    displayImage === image.url ? "border-primary-neon" : "border-white/10",
+                  )}
+                >
+                  <img src={image.url} alt={image.alt} className="h-full w-full object-cover" />
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="lg:col-span-7 flex flex-col gap-5 w-full">
@@ -202,17 +233,57 @@ export function ProductDetailClient({ initialProduct, relatedProducts }: Product
           <p className="text-text-dark font-sans leading-relaxed text-xs">{initialProduct.shortDescription}</p>
 
           <div className="text-3xl font-black text-text-pure tracking-tight neon-text-cyan my-2">
-            {formatVND(initialProduct.price)}
+            {formatVND(selectedVariant?.price ?? initialProduct.price)}
           </div>
 
-          {initialProduct.in_stock && (
+          {initialProduct.variants.length > 0 && (
+            <div className="flex flex-col gap-2">
+              <span className="text-[10px] uppercase text-text-dark">Chọn biến thể</span>
+              <div className="flex flex-wrap gap-2">
+                {initialProduct.variants.map((variant) => {
+                  const available = variant.stockQuantity - variant.reservedQuantity;
+                  return (
+                    <button
+                      key={variant.id}
+                      type="button"
+                      disabled={available <= 0}
+                      onClick={() => {
+                        setSelectedVariantId(variant.id);
+                        setQuantity(1);
+                      }}
+                      className={cn(
+                        "border px-3 py-2 text-left disabled:opacity-35",
+                        selectedVariantId === variant.id
+                          ? "border-primary-neon bg-primary-neon/10 text-primary-neon"
+                          : "border-white/10 text-text-muted",
+                      )}
+                    >
+                      <b className="block">{variant.name}</b>
+                      <span className="text-[9px]">{variant.weightGrams ? `${variant.weightGrams}g · ` : ""}{formatVND(variant.price)}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {selectedVariant && availableQuantity > 0 && (
             <div className="flex items-center flex-wrap gap-4 mt-2">
+              <span className="w-full text-[10px] uppercase text-text-dark">
+                Khả dụng: <b className="text-primary-neon">{availableQuantity}</b> sản phẩm
+              </span>
               <div className="flex items-center border border-white/10 h-11 bg-black/20">
                 <button type="button" onClick={() => setQuantity(q => Math.max(1, q - 1))} className="w-10 h-full flex items-center justify-center hover:bg-white/5 text-text-dark hover:text-text-pure transition-colors">
                   <Minus className="w-3.5 h-3.5" />
                 </button>
                 <span className="w-12 text-center font-bold text-text-pure text-sm">{quantity}</span>
-                <button type="button" onClick={() => setQuantity(q => q + 1)} className="w-10 h-full flex items-center justify-center hover:bg-white/5 text-text-dark hover:text-text-pure transition-colors">
+                <button
+                  type="button"
+                  disabled={quantity >= availableQuantity}
+                  onClick={() => setQuantity(q => Math.min(availableQuantity, q + 1))}
+                  title={quantity >= availableQuantity ? "Đã đạt số lượng tồn kho tối đa" : "Tăng số lượng"}
+                  className="w-10 h-full flex items-center justify-center hover:bg-white/5 text-text-dark hover:text-text-pure transition-colors disabled:cursor-not-allowed disabled:opacity-30"
+                >
                   <Plus className="w-3.5 h-3.5" />
                 </button>
               </div>

@@ -15,6 +15,7 @@ interface TrackingTimelineProps {
   orderId: string;
   initialLogs: TrackingLog[];
   currentStatus: string;
+  enableRealtime?: boolean;
 }
 
 // Hàm ánh xạ Icon công nghệ dựa trên từ khóa trạng thái đơn
@@ -35,11 +36,12 @@ const getStatusIcon = (status: string) => {
   }
 };
 
-export function TrackingTimeline({ orderId, initialLogs, currentStatus }: TrackingTimelineProps) {
+export function TrackingTimeline({ orderId, initialLogs, currentStatus, enableRealtime = false }: TrackingTimelineProps) {
   const [logs, setLogs] = useState<TrackingLog[]>(initialLogs);
   const [status, setStatus] = useState<string>(currentStatus);
 
   useEffect(() => {
+    if (!enableRealtime) return;
     // 1. LẮNG NGHE BIẾN ĐỘNG LỘ TRÌNH VẬN ĐƠN (ORDER_TRACKING TABLE)
     const trackingChannel = supabase
       .channel(`realtime-tracking:${orderId}`)
@@ -78,7 +80,7 @@ export function TrackingTimeline({ orderId, initialLogs, currentStatus }: Tracki
     return () => {
       supabase.removeChannel(trackingChannel);
     };
-  }, [orderId]);
+  }, [orderId, enableRealtime]);
 
   const formatTime = (isoString: string) => {
     return new Date(isoString).toLocaleString("vi-VN", {

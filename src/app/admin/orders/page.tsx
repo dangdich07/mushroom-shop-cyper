@@ -28,6 +28,7 @@ interface AdminOrderData {
   shipping_area: string;
   items: Array<{ product_id: string; quantity: number }>;
   created_at: string;
+  inventory_status: "NONE" | "RESERVED" | "COMMITTED" | "RELEASED" | "RESTOCKED";
 }
 
 // Cấu trúc hành trình phân tách từ bảng order_tracking độc lập
@@ -94,10 +95,10 @@ export default function AdminOrdersPage() {
 
   // 3. TRIỆU HỒI SERVER ACTION ĐIỀU PHỐI TRẠNG THÁI SANG CHU TRÌNH LOGISTICS MỚI
   const updateStatusMutation = useMutation({
-    mutationFn: async ({ id, status }: { id: string; status: OrderStatusType }) => {
+    mutationFn: async ({ id, status, restock = false }: { id: string; status: OrderStatusType; restock?: boolean }) => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error("Chưa kiểm toán được token đặc quyền Admin.");
-      const res = await updateOrderStatusAdminAction(id, status, session.access_token);
+      const res = await updateOrderStatusAdminAction(id, status, session.access_token, restock);
       if (!res.success) throw new Error(res.error);
       return status;
     },
@@ -261,15 +262,26 @@ export default function AdminOrdersPage() {
                   <select
                     value={activeOrder.status}
                     onChange={(e) => updateStatusMutation.mutate({ id: activeOrder.id, status: e.target.value as OrderStatusType })}
-                    disabled={updateStatusMutation.isPending}
+                    disabled={updateStatusMutation.isPending || activeOrder.status === "DELIVERED"}
                     className="bg-background-dark border border-white/10 p-2 text-text-pure focus:border-primary-neon outline-none font-bold text-xs uppercase"
                   >
                     <option value="PENDING">PENDING</option>
                     <option value="PROCESSING">PROCESSING</option>
                     <option value="SHIPPED">SHIPPED</option>
                     <option value="DELIVERED">DELIVERED</option>
-                    <option value="CANCELLED">CANCELLED</option>
+                    {activeOrder.status !== "DELIVERED" && <option value="CANCELLED">CANCELLED</option>}
                   </select>
+                  {activeOrder.status !== "DELIVERED" && activeOrder.inventory_status === "COMMITTED" && (
+                    <button
+                      type="button"
+                      disabled={updateStatusMutation.isPending}
+                      onClick={() => updateStatusMutation.mutate({ id: activeOrder.id, status: "CANCELLED", restock: true })}
+                      className="border border-red-500/30 px-2 py-2 text-[9px] font-bold uppercase text-red-400 hover:bg-red-500/10 disabled:opacity-40"
+                      title="Chỉ dùng khi hàng đã được xác nhận có thể nhập lại kho"
+                    >
+                      Hủy + hoàn kho
+                    </button>
+                  )}
                 </div>
               </div>
 

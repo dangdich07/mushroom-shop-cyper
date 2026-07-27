@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
-import { supabaseServiceRole } from "@/lib/supabaseServiceRole";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { Container } from "@/components/layout/container";
 import { VietQRCard } from "@/features/checkout/components/VietQRCard";
 import { Activity } from "lucide-react";
@@ -17,9 +17,15 @@ export default async function PaymentPage({ searchParams }: PaymentPageProps) {
   }
 
   // TRUY QUẾT DỮ LIỆU THANH TOÁN GỐC TỪ SERVER SIDE
-  const { data: payment, error } = await supabaseServiceRole
+  const supabase = await createSupabaseServerClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    redirect(`/login?next=${encodeURIComponent(`/checkout/payment?orderId=${orderId}`)}`);
+  }
+
+  const { data: payment, error } = await supabase
     .from("payments")
-    .select("*, orders(grand_total)")
+    .select("order_id, amount, status, qr_url, reference_code, expires_at")
     .eq("order_id", orderId)
     .single();
 
@@ -51,6 +57,7 @@ export default async function PaymentPage({ searchParams }: PaymentPageProps) {
               grandTotal={payment.amount}
               qrUrl={payment.qr_url || ""}
               referenceCode={payment.reference_code}
+              expiresAt={payment.expires_at}
             />
           </Suspense>
           

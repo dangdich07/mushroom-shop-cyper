@@ -1,146 +1,99 @@
 "use server";
 
+import { createHash, randomBytes } from "crypto";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { supabaseServiceRole } from "@/lib/supabaseServiceRole";
-import { CheckoutInput, ServerActionResponse, DbProductResponse } from "@/types/payment.types";
+import { checkoutInputSchema, idempotencyKeySchema } from "@/features/checkout/checkoutSchema";
+import type { ServerActionResponse } from "@/types/payment.types";
 
-// BỘ NHỚ ĐỆM ĐỆ TIÊN PHONG: Lưu trữ intent tạo đơn ngắn hạn cô lập tại RAM của Server-side
-const requestCacheLock = new Map<string, number>();
+interface CheckoutRpcResult {
+  success?: boolean;
+  order_id?: string;
+  created?: boolean;
+  expires_at?: string;
+  error_code?: string;
+}
 
-/**
- * SERVER ACTION: KHỞI TẠO ĐƠN HÀNG VÀ SOFT-LOCK KHO SINH KHỐI
- * Đã bọc màng bảo vệ Idempotency Lượng tử chống hành vi Double-Click hoặc Script Spam.
- */
-export async function createOrderAction(input: CheckoutInput, userId: string): Promise<ServerActionResponse> {
-  // KHÓA BẢO VỆ ĐẦU VÀO SƠ CẤP
-  if (!input.items || input.items.length === 0) {
-    return { success: false, error: "Khay trung chuyển mặt hàng trống. Không thể lập vận đơn." };
+const PUBLIC_ERRORS: Record<string, string> = {
+  AUTH_REQUIRED: "Phiên đăng nhập không hợp lệ hoặc đã hết hạn.",
+  EMPTY_CART: "Giỏ hàng đang trống.",
+  INVALID_ITEM: "Sản phẩm hoặc số lượng không hợp lệ.",
+  PRODUCT_UNAVAILABLE: "Một sản phẩm trong giỏ hiện không còn khả dụng.",
+  INVENTORY_NOT_VERIFIED: "Sản phẩm chưa hoàn tất kiểm kê và chưa thể đặt hàng.",
+  INSUFFICIENT_STOCK: "Số lượng tồn kho không đủ cho đơn hàng này.",
+  VOUCHER_INVALID: "Mã ưu đãi không hợp lệ, đã hết hạn hoặc chưa đạt giá trị tối thiểu.",
+  IDEMPOTENCY_CONFLICT: "Yêu cầu đặt hàng bị trùng mã nhưng có nội dung khác.",
+};
+
+function canonicalizeCheckout(input: ReturnType<typeof checkoutInputSchema.parse>) {
+  return {
+    ...input,
+    voucherCode: input.voucherCode || null,
+    items: [...input.items].sort((a, b) => a.variantId.localeCompare(b.variantId)),
+  };
+}
+
+export async function createOrderAction(
+  rawInput: unknown,
+  rawIdempotencyKey: string,
+): Promise<ServerActionResponse> {
+  const parsedInput = checkoutInputSchema.safeParse(rawInput);
+  const parsedKey = idempotencyKeySchema.safeParse(rawIdempotencyKey);
+  if (!parsedInput.success || !parsedKey.success) {
+    return { success: false, error: "Thông tin đặt hàng không hợp lệ." };
   }
-
-  // =========================================================================
-  // MÀNG BẢO VỆ CHÍ MẠNG: IDEMPOTENCY LOCK (CHỐNG SPAM / TẠO ĐƠN TRÙNG LẶP)
-  // =========================================================================
-  const fingerprintKey = `${userId}:${JSON.stringify(input.items)}`;
-  const nowTimestamp = Date.now();
-
-  if (requestCacheLock.has(fingerprintKey)) {
-    const lastRequestTime = requestCacheLock.get(fingerprintKey) || 0;
-    // Nếu khoảng cách giữa 2 request nhỏ hơn 5 giây ➔ Chặn đứng hỏa tốc
-    if (nowTimestamp - lastRequestTime < 5000) {
-      return {
-        success: false,
-        error: "[⚠️ AN NINH LƯỢNG TỬ]: Hệ thống phát hiện xung request tạo đơn liên tiếp trùng lặp. Lệnh xử lý bị khóa chặn trong 5 giây để chống spam kho sinh khối."
-      };
-    }
-  }
-
-  // Ghi nhận dấu vân tay request hợp lệ vào bộ nhớ đệm
-  requestCacheLock.set(fingerprintKey, nowTimestamp);
 
   try {
-    // 1. TRUY QUẤT GIÁ GỐC VÀ ĐỐI SOÁT TỒN KHO THỰC TẾ
-    const productIds = input.items.map(i => i.productId);
-    const { data: dbProducts, error: prodError } = await supabaseServiceRole
-      .from("products")
-      .select("id, price, in_stock, name")
-      .in("id", productIds);
+    const sessionClient = await createSupabaseServerClient();
+    const { data: { user }, error: authError } = await sessionClient.auth.getUser();
+    if (authError || !user) return { success: false, error: PUBLIC_ERRORS.AUTH_REQUIRED };
 
-    if (prodError || !dbProducts) {
-      // Giải phóng khóa cache nếu gãy luồng truy vấn kho
-      requestCacheLock.delete(fingerprintKey);
-      return { success: false, error: `[Lỗi Kho]: ${prodError?.message || "Không thể truy xuất giá trần"}` };
+    const input = canonicalizeCheckout(parsedInput.data);
+    const requestHash = createHash("sha256").update(JSON.stringify(input)).digest("hex");
+    const trackingToken = randomBytes(32).toString("base64url");
+    const trackingTokenHash = createHash("sha256").update(trackingToken).digest("hex");
+
+    const { data, error } = await supabaseServiceRole.rpc("create_secure_checkout", {
+      p_user_id: user.id,
+      p_idempotency_key: parsedKey.data,
+      p_request_hash: requestHash,
+      p_items_json: input.items.map((item) => ({
+        product_id: item.productId,
+        variant_id: item.variantId,
+        quantity: item.quantity,
+      })),
+      p_shipping_name: input.shippingName,
+      p_shipping_phone: input.shippingPhone,
+      p_shipping_detail: input.shippingDetail,
+      p_shipping_area: input.shippingArea,
+      p_payment_method: input.paymentMethod,
+      p_voucher_code: input.voucherCode,
+      p_tracking_token_hash: trackingTokenHash,
+    });
+
+    if (error) {
+      console.error("Checkout RPC failed", { code: error.code });
+      return { success: false, error: "Không thể tạo đơn hàng lúc này. Vui lòng thử lại." };
     }
 
-    let subtotal = 0;
-    for (const item of input.items) {
-      const matchedProd = (dbProducts as unknown as DbProductResponse[]).find(p => p.id === item.productId);
-      if (!matchedProd) {
-        requestCacheLock.delete(fingerprintKey);
-        return { success: false, error: "Phát hiện mã gen mô nấm không tồn tại trong kho lưu trữ." };
-      }
-      if (!matchedProd.in_stock) {
-        requestCacheLock.delete(fingerprintKey);
-        return { success: false, error: `Mẫu vật [${matchedProd.name}] đã hết hàng sinh khối khả dụng.` };
-      }
-      subtotal += matchedProd.price * item.quantity;
+    const result = data as CheckoutRpcResult | null;
+    if (!result?.success || !result.order_id) {
+      return {
+        success: false,
+        error: PUBLIC_ERRORS[result?.error_code || ""] || "Không thể tạo đơn hàng lúc này.",
+      };
     }
 
-    // 2. XỬ LÝ MÀNG LỌC VOUCHER TẦNG SERVER
-    let discount = 0;
-    if (input.voucherCode) {
-      const { data: voucher, error: vchError } = await supabaseServiceRole
-        .from("vouchers")
-        .select("*")
-        .eq("code", input.voucherCode.toUpperCase().trim())
-        .maybeSingle();
-
-      if (!vchError && voucher) {
-        if (subtotal >= Number(voucher.min_subtotal)) {
-          const expiryDate = new Date(voucher.expiry_date);
-          const currentDate = new Date("2026-06-14"); 
-
-          if (expiryDate >= currentDate) {
-            if (voucher.discount_type === "PERCENT") {
-              discount = (subtotal * Number(voucher.discount_value)) / 100;
-            } else {
-              discount = Number(voucher.discount_value);
-            }
-          }
-        }
-      }
-    }
-
-    const shippingFee = subtotal > 2000000 ? 0 : 35000; 
-    const grandTotal = Math.max(0, subtotal - discount + shippingFee);
-
-    const timestampNano = Date.now().toString().slice(-5);
-    const orderId = `MUSH-20260614-${timestampNano}`; 
-
-    const formattedItemsJson = input.items.map(item => ({
-      product_id: item.productId,
-      quantity: item.quantity
-    }));
-
-    // 3. TRIỆU HỒI RPC TRANSACTION VỚI CHUỖI PHÂN RÃ CHI TIẾT
-    const { data: txnResult, error: txnError } = await supabaseServiceRole.rpc(
-      "deploy_secure_checkout_transaction",
-      {
-        p_order_id: orderId,
-        p_user_id: userId,
-        p_subtotal: subtotal,
-        p_shipping_fee: shippingFee,
-        p_discount: discount,
-        p_grand_total: grandTotal,
-        p_shipping_name: input.shippingName,
-        p_shipping_phone: input.shippingPhone,
-        p_shipping_detail: input.shippingDetail,
-        p_shipping_area: input.shippingArea,
-        p_payment_method: input.paymentMethod,
-        p_items_json: formattedItemsJson,
-        p_reference_code: `MUSH ${orderId.replace(/-/g, "")}`
-      }
-    );
-
-    if (txnError) {
-      requestCacheLock.delete(fingerprintKey); // Giải phóng khóa khi xảy ra crash lỗi DB
-      return { success: false, error: `[DB Client Crash]: ${txnError.message} (Code: ${txnError.code})` };
-    }
-
-    if (!txnResult || txnResult.success === false) {
-      requestCacheLock.delete(fingerprintKey); // Giải phóng khóa khi SQL Engine từ chối
-      return { success: false, error: `[DB SQL Engine Error]: ${txnResult?.message || "Giao dịch thất bại vô căn cứ"}` };
-    }
-
-    // Sau 10 giây, tự động dọn sạch dấu vân tay cũ khỏi RAM để tiết kiệm tài nguyên Server
-    setTimeout(() => {
-      requestCacheLock.delete(fingerprintKey);
-    }, 10000);
-
-    return { success: true, orderId: orderId };
-  } catch (err: unknown) {
-    requestCacheLock.delete(fingerprintKey); // Giải phóng khóa khi nhảy vào catch block
-    return { 
-      success: false, 
-      error: `[Server Action Exception]: ${err instanceof Error ? err.message : "Sập luồng không xác định"}` 
+    return {
+      success: true,
+      orderId: result.order_id,
+      expiresAt: result.expires_at,
+      trackingToken: result.created ? trackingToken : undefined,
     };
+  } catch (error) {
+    console.error("Checkout action failed", {
+      name: error instanceof Error ? error.name : "UnknownError",
+    });
+    return { success: false, error: "Không thể tạo đơn hàng lúc này. Vui lòng thử lại." };
   }
 }

@@ -2,13 +2,20 @@
   "name": "cyber-mushroom",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=22.0.0"
+  },
   "scripts": {
     "dev": "next dev --turbopack",
+    "dev:test": "node --env-file=.env.test.local node_modules/next/dist/bin/next dev --turbopack",
     "build": "next build --turbopack",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test": "vitest run",
+    "test:p0": "vitest run tests/p0-security.test.ts"
   },
   "dependencies": {
+    "@supabase/ssr": "^0.12.3",
     "@supabase/supabase-js": "^2.43.5",
     "@tanstack/react-query": "^5.101.0",
     "clsx": "^2.1.1",
@@ -32,6 +39,7 @@
     "eslint": "^9",
     "eslint-config-next": "15.5.19",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^4.1.10"
   }
 }

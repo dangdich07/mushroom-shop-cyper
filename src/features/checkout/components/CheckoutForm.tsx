@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useTransition } from "react";
+import React, { useState, useEffect, useRef, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCartStore } from "@/store/useCartStore";
 import { createOrderAction } from "@/features/checkout/actions";
@@ -8,20 +8,6 @@ import { CheckoutInput, PaymentMethodType } from "@/types/payment.types";
 import { supabase } from "@/lib/supabaseClient";
 import { formatVND } from "@/lib/utils";
 import { ShieldCheck, Truck, CreditCard, Activity, AlertTriangle, MapPin } from "lucide-react";
-
-interface CartItem {
-  id: string;
-  name: string;
-  price: number;
-  image: string;
-  sku: string;
-  quantity: number;
-}
-
-interface CartStore {
-  items: CartItem[];
-  clearCart: () => void;
-}
 
 // Cấu trúc kiểu dữ liệu Sổ địa chỉ phòng Lab
 interface SavedAddress {
@@ -36,7 +22,8 @@ export function CheckoutForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const voucherCode = searchParams.get("voucher") || undefined;
-  const { items, clearCart } = useCartStore() as unknown as CartStore;
+  const { items, clearCart } = useCartStore();
+  const idempotencyRef = useRef<{ fingerprint: string; key: string } | null>(null);
   
   const [isPending, startTransition] = useTransition();
   const [serverError, setServerError] = useState<string | null>(null);
@@ -98,12 +85,6 @@ export function CheckoutForm() {
 
     startTransition(async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session) {
-          router.push("/login?redirect=/checkout");
-          return;
-        }
-
         const checkoutPayload: CheckoutInput = {
           shippingName: formData.shippingName.trim(),
           shippingPhone: formData.shippingPhone.trim(),
@@ -113,12 +94,17 @@ export function CheckoutForm() {
           voucherCode: voucherCode,
           items: items.map(item => ({
             productId: item.id,
+            variantId: item.variantId,
             quantity: item.quantity
           }))
         };
 
         // GỌI THÔNG QUA SERVER ACTION (TUYỆT ĐỐI KHÔNG GỌI TRỰC TIẾP RPC TỪ CLIENT CHỐNG LỖI 403)
-        const response = await createOrderAction(checkoutPayload, session.user.id);
+        const fingerprint = JSON.stringify(checkoutPayload);
+        if (!idempotencyRef.current || idempotencyRef.current.fingerprint !== fingerprint) {
+          idempotencyRef.current = { fingerprint, key: crypto.randomUUID() };
+        }
+        const response = await createOrderAction(checkoutPayload, idempotencyRef.current.key);
 
         if (!response.success || !response.orderId) {
           setServerError(response.error || "Lỗi cục bộ không thể thiết lập vận đơn.");
@@ -126,6 +112,9 @@ export function CheckoutForm() {
         }
 
         clearCart();
+        if (response.trackingToken) {
+          sessionStorage.setItem(`tracking-token:${response.orderId}`, response.trackingToken);
+        }
         
         if (formData.paymentMethod === "VIETQR") {
           router.push(`/checkout/payment?orderId=${response.orderId}`);

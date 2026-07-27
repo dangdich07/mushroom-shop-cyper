@@ -416,9 +416,51 @@ revoke all on function public.deploy_secure_checkout_transaction(
 
 grant execute on function public.is_admin() to authenticated;
 grant execute on function public.increment_blog_views(text) to anon, authenticated;
-grant execute on function public.deploy_secure_checkout_transaction(
+-- DEPRECATED rollback-only RPC: intentionally executable by no API role.
+revoke execute on function public.deploy_secure_checkout_transaction(
   text, text, numeric, numeric, numeric, numeric,
   text, text, text, text, text, jsonb, text
-) to service_role;
+) from public, anon, authenticated, service_role;
+
+-- P0 secure checkout, inventory and tokenized public tracking.
+alter table public.checkout_idempotency enable row level security;
+alter table public.inventory_events enable row level security;
+alter table public.payment_webhook_events enable row level security;
+
+revoke all on public.checkout_idempotency, public.inventory_events, public.payment_webhook_events
+  from public, anon, authenticated;
+grant all on public.checkout_idempotency, public.inventory_events, public.payment_webhook_events
+  to service_role;
+
+drop policy if exists order_tracking_public_select on public.order_tracking;
+drop policy if exists order_tracking_owner_or_admin_select on public.order_tracking;
+create policy order_tracking_owner_or_admin_select
+on public.order_tracking for select to authenticated
+using (
+  exists (
+    select 1 from public.orders o
+    where o.id = order_tracking.order_id
+      and (o.user_id = auth.uid() or public.is_admin())
+  )
+);
+revoke select on public.order_tracking from anon;
+
+revoke execute on function public.transition_order_inventory(text,text,text,uuid) from public, anon, authenticated;
+revoke execute on function public.create_secure_checkout(uuid,uuid,text,jsonb,text,text,text,text,text,text,text) from public, anon, authenticated;
+revoke execute on function public.mark_payment_paid_atomic(text,text,text,numeric,text) from public, anon, authenticated;
+revoke execute on function public.process_expired_reservations(text,integer) from public, anon, authenticated;
+revoke execute on function public.cleanup_checkout_idempotency(integer) from public, anon, authenticated;
+revoke execute on function public.admin_transition_order(text,text,uuid,boolean) from public, anon, authenticated;
+revoke execute on function public.get_public_order_tracking(text,text) from public, anon, authenticated;
+
+grant execute on function public.transition_order_inventory(text,text,text,uuid) to service_role;
+grant execute on function public.create_secure_checkout(uuid,uuid,text,jsonb,text,text,text,text,text,text,text) to service_role;
+grant execute on function public.mark_payment_paid_atomic(text,text,text,numeric,text) to service_role;
+grant execute on function public.process_expired_reservations(text,integer) to service_role;
+grant execute on function public.cleanup_checkout_idempotency(integer) to service_role;
+grant execute on function public.admin_transition_order(text,text,uuid,boolean) to service_role;
+grant execute on function public.get_public_order_tracking(text,text) to anon, authenticated, service_role;
+grant usage on type public.inventory_status to authenticated, service_role;
+grant usage on type public.idempotency_status to service_role;
 
 commit;

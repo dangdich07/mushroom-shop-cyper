@@ -29,23 +29,8 @@ interface DbVoucherSchema {
 }
 
 // Khai báo cấu trúc Store dự kiến từ useCartStore
-interface CartItem {
-  id: string;
-  name: string;
-  price: number;
-  image: string;
-  sku: string;
-  quantity: number;
-}
-
-interface CartStore {
-  items: CartItem[];
-  updateQuantity: (id: string, quantity: number) => void;
-  removeItem: (id: string) => void;
-}
-
 export default function CartPage() {
-  const { items, updateQuantity, removeItem } = useCartStore() as unknown as CartStore;
+  const { items, updateQuantity, removeItem } = useCartStore();
 
   // TRẠNG THÁI XỬ LÝ MÃ GIẢM GIÁ
   const [voucherCode, setVoucherCode] = useState("");
@@ -155,7 +140,7 @@ export default function CartPage() {
               {/* CỘT TRÁI: DÒNG VẬT PHẨM LEDGER (8 CỘT) */}
               <div className="lg:col-span-8 flex flex-col gap-3.5 w-full">
                 {items.map((item) => (
-                  <div key={item.id} className="border border-white/5 bg-background-card/20 p-4 flex flex-col sm:flex-row items-center justify-between gap-4 group hover:border-primary-cyan/20 transition-all duration-200">
+                  <div key={item.lineId} className="border border-white/5 bg-background-card/20 p-4 flex flex-col sm:flex-row items-center justify-between gap-4 group hover:border-primary-cyan/20 transition-all duration-200">
                     <div className="flex items-center gap-4 w-full sm:max-w-[60%]">
                       <div className="w-14 h-14 border border-white/10 overflow-hidden bg-black/40 shrink-0">
                         <img src={item.image} alt={item.name} className="w-full h-full object-cover opacity-80" />
@@ -163,6 +148,7 @@ export default function CartPage() {
                       <div className="flex flex-col gap-0.5 overflow-hidden">
                         <span className="text-[9px] text-text-dark uppercase">SKU: {item.sku}</span>
                         <h3 className="font-heading font-bold text-text-pure text-[12px] uppercase tracking-wide truncate">{item.name}</h3>
+                        <span className="text-[9px] text-primary-neon uppercase">{item.variantName}</span>
                         <span className="text-primary-cyan font-bold">{formatVND(item.price)}</span>
                       </div>
                     </div>
@@ -171,14 +157,14 @@ export default function CartPage() {
                     <div className="flex items-center justify-between sm:justify-end gap-6 w-full sm:w-auto border-t sm:border-t-0 border-white/5 pt-3 sm:pt-0">
                       <div className="flex items-center border border-white/10 bg-black/20 p-0.5">
                         <button 
-                          onClick={() => updateQuantity(item.id, Math.max(1, item.quantity - 1))}
+                          onClick={() => updateQuantity(item.lineId, Math.max(1, item.quantity - 1))}
                           className="p-1 text-text-dark hover:text-text-pure transition-colors cursor-pointer"
                         >
                           <Minus className="w-3 h-3" />
                         </button>
                         <span className="px-3 font-bold text-text-pure text-center min-w-[24px]">{item.quantity}</span>
                         <button 
-                          onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                          onClick={() => updateQuantity(item.lineId, item.quantity + 1)}
                           className="p-1 text-text-dark hover:text-text-pure transition-colors cursor-pointer"
                         >
                           <Plus className="w-3 h-3" />
@@ -186,7 +172,7 @@ export default function CartPage() {
                       </div>
                       <span className="font-bold text-text-pure min-w-[90px] text-right">{formatVND(item.price * item.quantity)}</span>
                       <button 
-                        onClick={() => removeItem(item.id)}
+                        onClick={() => removeItem(item.lineId)}
                         className="text-text-dark hover:text-red-400 p-1 transition-colors cursor-pointer"
                         title="Gỡ vật phẩm"
                       >

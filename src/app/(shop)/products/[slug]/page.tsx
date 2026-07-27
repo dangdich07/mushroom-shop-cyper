@@ -10,25 +10,27 @@ import { Activity } from "lucide-react";
 export const revalidate = 60;
 
 // SINH MÃ TOẠ ĐỘ TRƯỚC KHI BUILD ĐỂ GIẢM ĐỘ TRỄ PHẢN HỒI XUỐNG < 5ms
-export async function generateStaticParams() {
-  try {
-    const { data: products } = await supabaseServiceRole
-      .from("products")
-      .select("slug");
-
-    if (!products) return [];
-
-    return products.map((prod) => ({
-      slug: prod.slug,
-    }));
-  } catch (err) {
-    console.error("Gãy luồng tiền biên dịch dữ liệu tĩnh:", err);
-    return [];
-  }
-}
-
 interface PageProps {
   params: Promise<{ slug: string }>;
+}
+
+interface ProductVariantRow {
+  id: string;
+  product_id: string;
+  name: string;
+  sku: string;
+  weight_grams: number | null;
+  price: number | string;
+  compare_at_price: number | string | null;
+  stock_quantity: number;
+  reserved_quantity: number;
+  is_active: boolean;
+}
+
+interface ProductImageRow {
+  image_url: string;
+  alt_text: string | null;
+  sort_order: number;
 }
 
 export default async function ProductDetailPage({ params }: PageProps) {
@@ -37,13 +39,13 @@ export default async function ProductDetailPage({ params }: PageProps) {
   // 1. ĐỌC DỮ LIỆU GỐC CỦA MẪU VẬN NẤM TỪ SUPABASE CLOUD
   const { data: product, error: productError } = await supabaseServiceRole
     .from("products")
-    .select("*")
+    .select("*, product_variants(*), product_images(*)")
     .eq("slug", slug)
     .maybeSingle();
 
   if (productError) {
-    console.error("Không thể tải chi tiết sản phẩm từ Supabase:", productError);
-    throw productError;
+    console.error("Product detail query failed", { code: productError.code });
+    throw new Error("PRODUCT_DETAIL_QUERY_FAILED");
   }
 
   if (!product) {
@@ -78,6 +80,21 @@ export default async function ProductDetailPage({ params }: PageProps) {
     scientificName: product.scientific_name || "",
     shortDescription: product.short_description || "",
     slug: product.slug,
+    variants: ((product.product_variants || []) as ProductVariantRow[]).filter((variant) => variant.is_active).map((variant) => ({
+      id: variant.id,
+      productId: variant.product_id,
+      name: variant.name,
+      sku: variant.sku,
+      weightGrams: variant.weight_grams ?? undefined,
+      price: Number(variant.price),
+      compareAtPrice: variant.compare_at_price === null ? undefined : Number(variant.compare_at_price),
+      stockQuantity: variant.stock_quantity,
+      reservedQuantity: variant.reserved_quantity,
+      isActive: variant.is_active,
+    })),
+    images: ((product.product_images || []) as ProductImageRow[])
+      .sort((a, b) => a.sort_order - b.sort_order)
+      .map((image) => ({ url: image.image_url, alt: image.alt_text || product.name })),
     reviews: (reviews || []).map(r => ({
       id: r.id,
       userName: r.user_name,

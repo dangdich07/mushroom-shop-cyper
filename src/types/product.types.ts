@@ -1,5 +1,18 @@
 export type MushroomCategory = "MEDICINAL" | "FOOD" | "EQUIPMENT";
 
+export interface ProductVariant {
+  id: string;
+  productId: string;
+  name: string;
+  sku: string;
+  weightGrams?: number;
+  price: number;
+  compareAtPrice?: number;
+  stockQuantity: number;
+  reservedQuantity: number;
+  isActive: boolean;
+}
+
 export interface Product {
   id: string;
   slug: string;
@@ -16,4 +29,6 @@ export interface Product {
   tags: string[];
   inStock: boolean;
   pharmacologicalEffects?: string[];
+  defaultVariant?: ProductVariant;
+  variants?: ProductVariant[];
 }
