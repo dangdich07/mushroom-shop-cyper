@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
+import { DeliveryJourneyMap } from "@/components/order-flow/delivery-journey-map";
 import { supabase } from "@/lib/supabaseClient";
 import { Box, CheckCircle2, Clock, Truck, Package, XCircle, Activity } from "lucide-react";
 
@@ -22,17 +23,17 @@ interface TrackingTimelineProps {
 const getStatusIcon = (status: string) => {
   switch (status.toUpperCase()) {
     case "PENDING":
-      return <Clock className="w-4 h-4 text-amber-400" />;
+      return <Clock aria-hidden="true" className="h-4 w-4 text-amber-400" />;
     case "PROCESSING":
-      return <Package className="w-4 h-4 text-primary-cyan animate-pulse" />;
+      return <Package aria-hidden="true" className="h-4 w-4 animate-pulse text-primary-cyan motion-reduce:animate-none" />;
     case "SHIPPED":
-      return <Truck className="w-4 h-4 text-primary-neon animate-bounce" />;
+      return <Truck aria-hidden="true" className="h-4 w-4 animate-bounce text-primary-neon motion-reduce:animate-none" />;
     case "DELIVERED":
-      return <CheckCircle2 className="w-4 h-4 text-green-400" />;
+      return <CheckCircle2 aria-hidden="true" className="h-4 w-4 text-green-400" />;
     case "CANCELLED":
-      return <XCircle className="w-4 h-4 text-red-500" />;
+      return <XCircle aria-hidden="true" className="h-4 w-4 text-red-500" />;
     default:
-      return <Box className="w-4 h-4 text-text-muted" />;
+      return <Box aria-hidden="true" className="h-4 w-4 text-text-muted" />;
   }
 };
 
@@ -92,26 +93,28 @@ export function TrackingTimeline({ orderId, initialLogs, currentStatus, enableRe
   };
 
   return (
-    <div className="w-full flex flex-col gap-6 font-mono text-xs text-text-pure">
+    <div className="flex w-full min-w-0 flex-col gap-6 font-mono text-xs text-text-pure">
       
       {/* KHỐI TRẠNG THÁI HIỆN TẠI DẬP NỔI CAO CẤP */}
-      <div className="border border-white/10 bg-black/40 p-4 rounded-sm flex items-center justify-between shadow-[0_0_15px_rgba(0,245,255,0.02)]">
-        <span className="text-text-dark uppercase tracking-wider text-[10px]">Trạng thái phôi sinh khối:</span>
-        <div className="flex items-center gap-2 px-3 py-1 bg-white/5 border border-white/15 font-black uppercase text-[11px] tracking-widest text-primary-cyan">
+      <div className="flex min-w-0 flex-col gap-3 rounded-sm border border-white/10 bg-black/40 p-4 shadow-[0_0_15px_rgba(0,245,255,0.02)] sm:flex-row sm:items-center sm:justify-between">
+        <span className="break-words text-[10px] uppercase tracking-wider text-text-dark">Trạng thái phôi sinh khối:</span>
+        <div role="status" aria-live="polite" className="flex min-w-0 items-center gap-2 border border-white/15 bg-white/5 px-3 py-2 text-[11px] font-black uppercase tracking-widest text-primary-cyan">
           {getStatusIcon(status)}
           <span>{status}</span>
         </div>
       </div>
 
       {/* KHỐI TRỤC THỜI GIAN TIẾN TRÌNH LÂM SÀNG */}
-      <div className="glass-premium p-6 border-white/5 flex flex-col gap-6 relative">
+      <DeliveryJourneyMap orderId={orderId} status={status} />
+
+      <div className="glass-premium relative flex min-w-0 flex-col gap-6 border-white/5 p-4 sm:p-6">
         <span className="text-[10px] font-bold text-primary-neon uppercase border-b border-white/5 pb-2 flex items-center gap-1.5">
-          <Activity className="w-3.5 h-3.5 animate-spin text-primary-neon" /> ĐỊNH VỊ NHẬT KÝ HÀNH TRÌNH LOGISTICS
+          <Activity aria-hidden="true" className="h-3.5 w-3.5 animate-spin text-primary-neon motion-reduce:animate-none" /> ĐỊNH VỊ NHẬT KÝ HÀNH TRÌNH LOGISTICS
         </span>
 
         <div className="relative border-l border-white/10 pl-6 ml-2 flex flex-col gap-6">
           {logs.map((log, index) => (
-            <div key={log.id} className="relative flex flex-col gap-1.5 group animate-in slide-in-from-left-2 duration-300">
+            <div key={log.id} className="group relative flex min-w-0 flex-col gap-1.5 animate-in slide-in-from-left-2 duration-300 motion-reduce:animate-none">
               
               {/* ĐIỂM RADAR PHÁT QUANG */}
               <div className={`absolute -left-[31px] top-0 w-4 h-4 rounded-full flex items-center justify-center border bg-background-deep ${
@@ -125,13 +128,13 @@ export function TrackingTimeline({ orderId, initialLogs, currentStatus, enableRe
               {/* THÔNG TIN CHI TIẾT LOG LỘ TRÌNH */}
               <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-1">
                 <strong className={`font-bold uppercase tracking-wide text-[11px] ${index === 0 ? "text-primary-neon" : "text-text-pure"}`}>
-                  {log.title}
+                  <span className="break-words">{log.title}</span>
                 </strong>
                 <span className="text-[10px] text-text-dark font-mono shrink-0">
                   [{formatTime(log.created_at)}]
                 </span>
               </div>
-              <p className="text-text-muted text-[11px] font-sans leading-relaxed">
+              <p className="break-words font-sans text-[11px] leading-relaxed text-text-muted">
                 {log.description}
               </p>
             </div>

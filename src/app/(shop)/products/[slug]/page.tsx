@@ -4,6 +4,7 @@ import { supabaseServiceRole } from "@/lib/supabaseServiceRole";
 import { Container } from "@/components/layout/container";
 import { PageWrapper } from "@/components/layout/page-wrapper";
 import { ProductDetailClient } from "@/features/checkout/components/ProductDetailClient";
+import type { ProductDetailData } from "@/components/product-detail/product-detail.types";
 import { Activity } from "lucide-react";
 
 // KÍCH HOẠT CHU KỲ LÀM TƯƠI BỘ NHỚ ĐỆM TỰ ĐỘNG (ISR 60 GIÂY MỘT LẦN)
@@ -68,7 +69,7 @@ export default async function ProductDetailPage({ params }: PageProps) {
     .limit(3);
 
   // Đóng gói chuyển đổi cấu trúc dữ liệu snake_case từ Postgres sang camelCase của Frontend
-  const initialProductData = {
+  const initialProductData: ProductDetailData = {
     id: product.id,
     name: product.name,
     price: Number(product.price),
@@ -123,11 +124,11 @@ export default async function ProductDetailPage({ params }: PageProps) {
 
   return (
     <PageWrapper>
-      <div className="relative min-h-screen py-8 border-b border-white/5">
+      <div className="relative min-h-screen min-w-0 overflow-x-clip border-b border-white/5 py-8">
         <Container>
           <Suspense fallback={
-            <div className="min-h-screen flex justify-center items-center font-mono text-xs text-primary-neon">
-              <Activity className="w-5 h-5 animate-spin mr-2" /> Đang giải băm cấu trúc nấm lượng tử...
+            <div className="flex min-h-[60vh] items-center justify-center px-4 text-center font-mono text-xs text-primary-neon" role="status">
+              <Activity aria-hidden="true" className="mr-2 h-5 w-5 animate-spin motion-reduce:animate-none" /> Đang giải băm cấu trúc nấm lượng tử...
             </div>
           }>
             <ProductDetailClient 

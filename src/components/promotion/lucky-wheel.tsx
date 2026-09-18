@@ -1,108 +1,254 @@
 "use client";
 
-import React, { useState } from "react";
-import { motion, useAnimation } from "framer-motion";
-import { HelpCircle, Sparkles } from "lucide-react";
-import { MOCK_WHEEL_PRIZES } from "@/data/promotions";
+import { useMemo, useRef, useState } from "react";
+import { motion, useAnimation, useReducedMotion } from "framer-motion";
+import {
+  ArrowRight,
+  Coins,
+  Gift,
+  LogIn,
+  RotateCw,
+  Sparkles,
+} from "lucide-react";
 
-export function LuckyWheel() {
-  const [isSpinning, setIsSpinning] = useState(false);
-  const [prizeMessage, setPrizeMessage] = useState<string | null>(null);
+export interface WheelOffer {
+  code: string;
+  label: string;
+}
+
+export interface WheelSpinResult {
+  code: string;
+  label: string;
+  pointsBalance: number;
+}
+
+interface LuckyWheelProps {
+  offers: WheelOffer[];
+  pointsBalance: number;
+  spinCost?: number;
+  isAuthenticated: boolean;
+  isWalletLoading?: boolean;
+  onLogin: () => void;
+  onSpin: () => Promise<WheelSpinResult>;
+  onSelectOffer: (code: string) => void;
+}
+
+const SEGMENT_COLORS = [
+  "bg-primary-neon",
+  "bg-secondary-purple",
+  "bg-primary-cyan",
+  "bg-violet-500",
+  "bg-cyan-300",
+  "bg-slate-500",
+];
+
+export function LuckyWheel({
+  offers,
+  pointsBalance,
+  spinCost = 50,
+  isAuthenticated,
+  isWalletLoading = false,
+  onLogin,
+  onSpin,
+  onSelectOffer,
+}: LuckyWheelProps) {
   const controls = useAnimation();
+  const reduceMotion = useReducedMotion();
+  const rotationRef = useRef(0);
+  const [isSpinning, setIsSpinning] = useState(false);
+  const [selectedOffer, setSelectedOffer] = useState<WheelSpinResult | null>(
+    null,
+  );
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const wheelOffers = useMemo(() => offers.slice(0, 6), [offers]);
+  const segmentCount = Math.max(wheelOffers.length, 1);
+  const canAffordSpin = pointsBalance >= spinCost;
 
   const handleSpin = async () => {
-    if (isSpinning) return;
+    if (!isAuthenticated) {
+      onLogin();
+      return;
+    }
+    if (isSpinning || wheelOffers.length === 0 || !canAffordSpin) return;
 
     setIsSpinning(true);
-    setPrizeMessage(null);
+    setSelectedOffer(null);
+    setErrorMessage(null);
 
-    // Sinh góc quay ngẫu nhiên: Ít nhất 5 vòng (1800 độ) + góc của giải thưởng ngẫu nhiên
-    const prizeIndex = Math.floor(Math.random() * MOCK_WHEEL_PRIZES.length);
-    const degreesPerSegment = 360 / MOCK_WHEEL_PRIZES.length;
-    // Căn giữa góc của phân vùng phần thưởng
-    const targetDegrees = 360 - (prizeIndex * degreesPerSegment) - (degreesPerSegment / 2);
-    const totalRotation = 1800 + targetDegrees;
+    try {
+      const result = await onSpin();
+      const selectedIndex = Math.max(
+        0,
+        wheelOffers.findIndex((offer) => offer.code === result.code),
+      );
+      const segmentAngle = 360 / segmentCount;
+      const alignToPointer =
+        360 - selectedIndex * segmentAngle - segmentAngle / 2;
+      const nextRotation =
+        rotationRef.current + (reduceMotion ? 360 : 1440) + alignToPointer;
 
-    await controls.start({
-      rotate: totalRotation,
-      transition: { duration: 4, ease: [0.25, 0.1, 0.25, 1] }
-    });
-
-    // Thiết lập trạng thái hiển thị phần thưởng
-    setPrizeMessage(`Kích hoạt thành công vật phẩm: ${MOCK_WHEEL_PRIZES[prizeIndex].name}`);
-    setIsSpinning(false);
+      rotationRef.current = nextRotation;
+      await controls.start({
+        rotate: nextRotation,
+        transition: {
+          duration: reduceMotion ? 0.35 : 2.8,
+          ease: [0.16, 1, 0.3, 1],
+        },
+      });
+      setSelectedOffer(result);
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "Không thể hoàn tất lượt quay lúc này.",
+      );
+    } finally {
+      setIsSpinning(false);
+    }
   };
 
-  const handleResetWheel = () => {
-    controls.set({ rotate: 0 });
-    setPrizeMessage(null);
-  };
+  const buttonDisabled =
+    isSpinning ||
+    isWalletLoading ||
+    wheelOffers.length === 0 ||
+    (isAuthenticated && !canAffordSpin);
 
   return (
-    <div className="glass-premium p-6 sm:p-8 flex flex-col items-center gap-6 relative w-full overflow-hidden">
-      <div className="text-center flex flex-col gap-1">
-        <span className="text-[9px] font-mono text-primary-neon uppercase tracking-widest flex items-center justify-center gap-1">
-          <Sparkles className="w-3 h-3 animate-spin" /> Vòng Quay Lượng Tử
-        </span>
-        <h3 className="font-heading font-bold text-lg text-text-pure uppercase tracking-wide">Giải Mã Gen Thưởng</h3>
+    <section
+      aria-labelledby="voucher-wheel-title"
+      className="glass-premium relative overflow-hidden p-5 sm:p-7"
+    >
+      <div className="pointer-events-none absolute -right-16 -top-16 h-40 w-40 rounded-full bg-secondary-purple/15 blur-3xl" />
+      <div className="pointer-events-none absolute -bottom-20 -left-16 h-40 w-40 rounded-full bg-primary-neon/10 blur-3xl" />
+
+      <div className="relative flex items-start justify-between gap-4">
+        <div>
+          <span className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.22em] text-primary-neon">
+            <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
+            Loyalty reactor
+          </span>
+          <h2
+            id="voucher-wheel-title"
+            className="mt-2 font-heading text-xl font-black uppercase text-text-pure"
+          >
+            Vòng quay tích điểm
+          </h2>
+          <p className="mt-2 max-w-sm text-sm leading-6 text-text-dark">
+            Máy chủ chọn voucher và trừ điểm nguyên tử. Mỗi lượt quay được ghi
+            vào lịch sử tài khoản.
+          </p>
+        </div>
+        <div className="border border-primary-neon/20 bg-primary-neon/5 p-2.5 text-primary-neon">
+          <Gift className="h-5 w-5" aria-hidden="true" />
+        </div>
       </div>
 
-      {/* CẤU TRÚC ĐỒ HỌA VÒNG QUAY */}
-      <div className="relative w-64 h-64 sm:w-72 sm:h-72 my-4 flex items-center justify-center">
-        {/* Kim chỉ định hướng đỉnh vòng quay */}
-        <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-0 h-0 border-l-[10px] border-l-transparent border-r-[10px] border-r-transparent border-t-[18px] border-t-primary-neon z-30 drop-shadow-[0_0_8px_#00F5FF]" />
+      <div className="relative mt-5 flex items-center justify-between border-y border-white/[0.07] py-3 font-mono text-[10px] uppercase">
+        <span className="text-text-dark">Số dư khả dụng</span>
+        <span className="flex items-center gap-1.5 font-black text-amber-300">
+          <Coins className="h-3.5 w-3.5" aria-hidden="true" />
+          {isWalletLoading ? "Đang đồng bộ" : `${pointsBalance} điểm`}
+        </span>
+      </div>
 
-        {/* Khung đĩa xoay phân đoạn */}
+      <div className="relative mx-auto my-7 flex aspect-square w-full max-w-[310px] items-center justify-center">
+        <div className="absolute -top-1 left-1/2 z-30 h-0 w-0 -translate-x-1/2 border-l-[12px] border-r-[12px] border-t-[22px] border-l-transparent border-r-transparent border-t-primary-neon drop-shadow-[0_0_10px_#00F5FF]" />
+
         <motion.div
           animate={controls}
           initial={{ rotate: 0 }}
-          className="w-full h-full rounded-full border-4 border-white/5 relative overflow-hidden grid items-center justify-center bg-background-card"
+          className="absolute inset-0 rounded-full border-[6px] border-white/[0.06] bg-[radial-gradient(circle_at_center,#0b1120_0_29%,transparent_30%),conic-gradient(from_0deg,rgba(0,245,255,.16),rgba(139,92,246,.14),rgba(0,245,255,.06),rgba(139,92,246,.18),rgba(0,245,255,.12),rgba(139,92,246,.08))] shadow-[0_0_40px_rgba(0,245,255,.08)]"
         >
-          {MOCK_WHEEL_PRIZES.map((prize, idx) => {
-            const angle = (360 / MOCK_WHEEL_PRIZES.length) * idx;
+          <div className="absolute inset-[18%] rounded-full border border-primary-neon/15" />
+          {wheelOffers.map((offer, index) => {
+            const angle = (360 / segmentCount) * index;
             return (
               <div
-                key={prize.id}
-                className="absolute top-0 left-0 w-full h-full origin-center flex items-start justify-center pt-4"
+                key={offer.code}
+                className="absolute inset-0 flex origin-center justify-center pt-5"
                 style={{ transform: `rotate(${angle}deg)` }}
               >
-                <div className="flex flex-col items-center gap-1 text-center select-none">
-                  <span className="font-mono text-[9px] font-bold text-text-pure uppercase tracking-tight max-w-[60px] leading-tight break-words">
-                    {prize.name}
+                <div className="flex max-w-[74px] flex-col items-center gap-1 text-center">
+                  <span className="font-mono text-[9px] font-black uppercase leading-tight text-text-pure">
+                    {offer.code}
                   </span>
-                  <div className={`w-1.5 h-1.5 rounded-full ${prize.color} border border-white/20`} />
+                  <span
+                    className={`h-1.5 w-1.5 rounded-full ${SEGMENT_COLORS[index % SEGMENT_COLORS.length]}`}
+                  />
                 </div>
               </div>
             );
           })}
-          {/* Hệ mạng lưới tia trang trí vòng trong */}
-          <div className="absolute inset-8 rounded-full border border-white/5 pointer-events-none" />
-          <div className="absolute inset-16 rounded-full border border-primary-neon/10 pointer-events-none" />
         </motion.div>
 
-        {/* Nút bấm kích nổ hạt nhân trung tâm */}
         <button
+          type="button"
           onClick={handleSpin}
-          disabled={isSpinning}
-          className="absolute w-14 h-14 rounded-full bg-primary-neon disabled:bg-white/5 text-background-deep disabled:text-text-dark font-mono font-black text-xs uppercase tracking-tighter flex items-center justify-center border-4 border-background-deep shadow-neon-cyan disabled:shadow-none transition-all cursor-pointer disabled:cursor-not-allowed z-20"
+          disabled={buttonDisabled}
+          aria-label={
+            isAuthenticated
+              ? `Quay vòng quay với chi phí ${spinCost} điểm`
+              : "Đăng nhập để quay voucher"
+          }
+          className="relative z-20 flex h-20 w-20 flex-col items-center justify-center rounded-full border-4 border-background-deep bg-primary-neon font-mono text-[10px] font-black uppercase leading-tight text-background-deep shadow-neon-cyan transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-neon focus-visible:ring-offset-4 focus-visible:ring-offset-background-deep disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-text-dark disabled:shadow-none"
         >
-          {isSpinning ? "Xoay" : "SPIN"}
+          {isSpinning ? (
+            <RotateCw className="h-5 w-5 animate-spin" aria-hidden="true" />
+          ) : !isAuthenticated ? (
+            <LogIn className="h-5 w-5" aria-hidden="true" />
+          ) : (
+            <>
+              <span>Quay</span>
+              <span>{spinCost} điểm</span>
+            </>
+          )}
         </button>
       </div>
 
-      {/* THÔNG BÁO KẾT QUẢ QUY ĐỔI */}
-      <div className="w-full h-12 flex items-center justify-center">
-        {prizeMessage ? (
-          <div className="text-xs font-mono text-primary-neon bg-primary-neon/5 border border-primary-neon/20 px-4 py-2 flex items-center gap-2 animate-in fade-in duration-200">
-            <span>{prizeMessage}</span>
-            <button onClick={handleResetWheel} className="text-text-pure underline text-[10px] cursor-pointer pl-2 border-l border-white/10">Làm mới</button>
+      <div aria-live="polite" className="min-h-28">
+        {selectedOffer ? (
+          <div className="border border-primary-neon/25 bg-primary-neon/[0.06] p-4">
+            <p className="font-mono text-[10px] uppercase tracking-widest text-text-dark">
+              Voucher đã vào kho phần thưởng
+            </p>
+            <div className="mt-2 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="font-heading text-lg font-black text-primary-neon">
+                  {selectedOffer.code}
+                </p>
+                <p className="mt-0.5 text-xs text-text-muted">
+                  {selectedOffer.label} · còn {selectedOffer.pointsBalance} điểm
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => onSelectOffer(selectedOffer.code)}
+                className="inline-flex min-h-10 items-center justify-center gap-2 bg-primary-neon px-4 font-mono text-[10px] font-black uppercase text-background-deep transition-colors hover:bg-text-pure focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-neon"
+              >
+                Dùng mã
+                <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+              </button>
+            </div>
+          </div>
+        ) : errorMessage ? (
+          <div className="flex min-h-28 items-center justify-center border border-red-400/20 bg-red-400/[0.04] px-4 text-center">
+            <p className="text-xs leading-5 text-red-300">{errorMessage}</p>
           </div>
         ) : (
-          <p className="text-xs text-text-dark font-body flex items-center gap-1">
-            <HelpCircle className="w-3.5 h-3.5" /> Chi phí: 50 điểm tích lũy thành viên / lượt quay.
-          </p>
+          <div className="flex min-h-28 items-center justify-center border border-dashed border-white/10 px-4 text-center">
+            <p className="font-mono text-[10px] uppercase leading-5 tracking-wider text-text-dark">
+              {!isAuthenticated
+                ? "Đăng nhập để truy cập ví điểm và vòng quay"
+                : !canAffordSpin
+                  ? `Cần thêm ${spinCost - pointsBalance} điểm để quay`
+                  : wheelOffers.length > 0
+                    ? "Sẵn sàng khóa một voucher ngẫu nhiên"
+                    : "Chưa có voucher khả dụng để quay"}
+            </p>
+          </div>
         )}
       </div>
-    </div>
+    </section>
   );
 }

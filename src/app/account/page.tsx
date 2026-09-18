@@ -1,109 +1,34 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/lib/supabaseClient";
-import { MockDbService } from "@/services/mockDb";
+import { AccountPageHeader } from "@/components/account/account-page-header";
+import { AccountStatePanel } from "@/components/account/account-state-panel";
+import { AccountStatGrid } from "@/components/account/account-stat-grid";
+import { getAccountDashboard } from "@/features/account/account.repository";
 import { formatVND } from "@/lib/utils";
-import { Activity } from "lucide-react";
-
-interface OrderItem {
-  id: string;
-  createdAt: string;
-  created_at?: string;
-  status: string;
-  grandTotal: number;
-  grand_total?: number;
-}
+import { supabase } from "@/lib/supabaseClient";
 
 export default function AccountDashboardPage() {
-  const [userId, setUserId] = useState<string | null>(null);
-  const [authLoading, setAuthLoading] = useState(true);
+  const dashboardQuery = useQuery({ queryKey: ["account-dashboard"], queryFn: () => getAccountDashboard(supabase) });
+  if (dashboardQuery.isLoading) return <AccountStatePanel kind="LOADING" message="Đang cập nhật dữ liệu tài khoản..." />;
+  if (dashboardQuery.isError) return <div className="space-y-3"><AccountStatePanel kind="ERROR" message="Không thể tải dữ liệu tổng quan lúc này." /><button type="button" onClick={() => dashboardQuery.refetch()} className="min-h-11 border border-primary-cyan/30 px-4 font-mono text-xs uppercase text-primary-cyan">Thử lại</button></div>;
 
-  useEffect(() => {
-    const checkSession = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session?.user) {
-          setUserId(session.user.id);
-        } else {
-          setUserId("usr-01");
-        }
-      } catch {
-        setUserId("usr-01");
-      } finally {
-        setAuthLoading(false);
-      }
-    };
-    checkSession();
-  }, []);
-
-  const { data: orders, isLoading } = useQuery<OrderItem[]>({
-    queryKey: ["account-orders", userId],
-    queryFn: async () => {
-      if (!userId) return [];
-      return MockDbService.getUserOrders(userId);
-    },
-    enabled: !authLoading && !!userId,
-  });
-
-  if (authLoading || isLoading) {
-    return (
-      <div className="flex items-center justify-center py-12 font-mono text-xs text-primary-neon w-full">
-        <Activity className="w-4 h-4 animate-spin mr-2" /> Đang cập nhật ma trận chỉ số sinh học...
-      </div>
-    );
-  }
-
-  const localOrders = orders || [];
-  const totalSpent = localOrders.reduce((acc, order) => acc + (order.grandTotal || order.grand_total || 0), 0);
+  const dashboard = dashboardQuery.data;
+  if (!dashboard) return <AccountStatePanel kind="EMPTY" message="Chưa có dữ liệu tổng quan." />;
 
   return (
-    <div className="flex flex-col gap-6 animate-in fade-in duration-200 w-full">
-      <div className="flex flex-col gap-1">
-        <h2 className="text-xl font-heading font-black uppercase text-text-pure tracking-wider">Trung Tâm Điều Phối Cá Nhân</h2>
-        <p className="text-xs font-mono text-text-dark">Chào mừng trở lại. Hệ thống ghi nhận lần đăng nhập cuối: 11.06.2026 - 02:45:10</p>
-      </div>
-
-      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 font-mono text-xs w-full">
-        <div className="bg-background-card/30 border border-white/5 p-4 flex flex-col gap-1.5">
-          <span className="text-[10px] text-text-dark uppercase">Tổng Đơn Hàng</span>
-          <span className="text-xl font-black text-text-pure">{localOrders.length}</span>
-        </div>
-        <div className="bg-background-card/30 border border-white/5 p-4 flex flex-col gap-1.5">
-          <span className="text-[10px] text-text-dark uppercase">Điểm Tích Lũy</span>
-          <span className="text-xl font-black text-secondary-purple">350 Pts</span>
-        </div>
-        <div className="bg-background-card/30 border border-white/5 p-4 flex flex-col gap-1.5">
-          <span className="text-[10px] text-text-dark uppercase">Tổng Quyết Toán</span>
-          <span className="text-xl font-black text-primary-cyan">{formatVND(totalSpent)}</span>
-        </div>
-        <div className="bg-background-card/30 border border-white/5 p-4 flex flex-col gap-1.5">
-          <span className="text-[10px] text-text-dark uppercase">Trạng Thái Sinh Học</span>
-          <span className="text-xl font-black text-primary-neon uppercase">Active</span>
-        </div>
-      </div>
-
-      <div className="flex flex-col gap-3 mt-4 w-full">
-        <h3 className="font-heading font-black text-xs text-primary-cyan uppercase tracking-widest border-b border-white/5 pb-2">Nhật ký hệ thống gần đây</h3>
-        <div className="flex flex-col gap-2 font-mono text-xs">
-          {localOrders.length > 0 ? (
-            <div className="p-3 border border-white/5 bg-white/2 flex justify-between items-center">
-              <span className="text-text-pure">● Vận đơn hỏa tốc {localOrders[0].id} đã được ghi nhận trên cổng dữ liệu Cloud</span>
-              <span className="text-[10px] text-text-dark">Vừa xong</span>
-            </div>
-          ) : (
-            <div className="p-3 border border-white/5 bg-white/2 flex justify-between items-center">
-              <span className="text-text-pure">● Hệ thống sẵn sàng tiếp nhận phễu quyết toán sinh khối nấm</span>
-              <span className="text-[10px] text-text-dark">Hiện tại</span>
-            </div>
-          )}
-          <div className="p-3 border border-white/5 bg-white/2 flex justify-between items-center">
-            <span className="text-text-pure">● Cập nhật thành công Token mật mã an ninh đám mây</span>
-            <span className="text-[10px] text-text-dark">1 ngày trước</span>
-          </div>
-        </div>
-      </div>
+    <div className="flex w-full min-w-0 flex-col gap-6 animate-in fade-in duration-200 motion-reduce:animate-none">
+      <AccountPageHeader title="Trung Tâm Điều Phối Cá Nhân" description="Tổng quan dữ liệu tài khoản hiện tại." />
+      <AccountStatGrid items={[
+        { label: "Tổng Đơn Hàng", value: String(dashboard.orders.length) },
+        { label: "Điểm Tích Lũy", value: `${dashboard.loyaltyPoints} Pts`, tone: "PURPLE" },
+        { label: "Tổng Quyết Toán", value: formatVND(dashboard.totalSpent), tone: "CYAN" },
+        { label: "Đơn Đã Giao", value: String(dashboard.orders.filter((order) => order.status.toUpperCase() === "DELIVERED").length), tone: "NEON" },
+      ]} />
+      <section className="mt-2 flex min-w-0 flex-col gap-3">
+        <h2 className="border-b border-white/5 pb-2 font-heading text-xs font-black uppercase tracking-widest text-primary-cyan">Hoạt động gần đây</h2>
+        {dashboard.orders.length === 0 ? <AccountStatePanel kind="EMPTY" message="Chưa có hoạt động đơn hàng gần đây." /> : <ul className="grid gap-2 font-mono text-xs">{dashboard.orders.slice(0, 3).map((order) => <li key={order.id} className="min-w-0 border border-white/5 bg-white/2 p-3"><span className="break-words text-text-pure">Đơn hàng <span className="break-all text-primary-cyan">{order.id}</span> — {order.status}</span><time className="mt-1 block text-[10px] text-text-dark">{order.createdAt}</time></li>)}</ul>}
+      </section>
     </div>
   );
 }

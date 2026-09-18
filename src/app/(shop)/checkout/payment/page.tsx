@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { Container } from "@/components/layout/container";
+import { OrderFlowHeader } from "@/components/order-flow/order-flow-header";
 import { VietQRCard } from "@/features/checkout/components/VietQRCard";
 import { Activity } from "lucide-react";
 
@@ -39,19 +40,12 @@ export default async function PaymentPage({ searchParams }: PaymentPageProps) {
   }
 
   return (
-    <div className="min-h-screen py-20 bg-background-deep font-mono">
+    <div className="min-h-screen min-w-0 overflow-x-clip bg-background-deep py-12 font-mono sm:py-20">
       <Container>
-        <div className="max-w-xl mx-auto flex flex-col gap-8">
-          <div className="flex flex-col gap-2 text-center">
-            <h1 className="text-2xl font-heading font-black text-text-pure uppercase tracking-tighter">
-              Trạm Quyết Toán VietQR
-            </h1>
-            <p className="text-text-dark text-[10px] uppercase tracking-widest">
-              Đơn hàng: <span className="text-primary-cyan">{orderId}</span>
-            </p>
-          </div>
+        <div className="mx-auto flex max-w-2xl min-w-0 flex-col gap-8">
+          <OrderFlowHeader eyebrow="Thanh toán đơn hàng" title="Trạm Quyết Toán VietQR" orderId={orderId} description="Quét mã hoặc sử dụng thông tin chuyển khoản được hiển thị cho đơn hàng này." />
 
-          <Suspense fallback={<Activity className="w-10 h-10 animate-spin text-primary-cyan mx-auto" />}>
+          <Suspense fallback={<div role="status" className="flex items-center justify-center gap-2 py-16 text-[10px] uppercase text-primary-cyan"><Activity aria-hidden="true" className="h-6 w-6 animate-spin motion-reduce:animate-none" /> Đang tải thông tin thanh toán...</div>}>
             <VietQRCard 
               orderId={orderId}
               grandTotal={payment.amount}
@@ -62,7 +56,7 @@ export default async function PaymentPage({ searchParams }: PaymentPageProps) {
           </Suspense>
           
           <div className="text-center">
-            <p className="text-[9px] text-text-dark uppercase leading-relaxed">
+            <p className="break-words text-[9px] uppercase leading-relaxed text-text-dark">
               * Lưu ý: Mạch thanh toán sẽ tự động đóng sau 15 phút.<br/>
               Hệ thống sẽ tự động xác nhận ngay khi xung tiền cập bến tài khoản Lab.
             </p>

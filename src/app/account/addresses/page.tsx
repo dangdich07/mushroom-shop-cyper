@@ -5,6 +5,9 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useOverlayStore } from "@/store/useOverlayStore";
 import { supabase } from "@/lib/supabaseClient";
 import { Plus, Trash2, Activity, AlertCircle, MapPin, Pencil, X, Save } from "lucide-react";
+import { AccountAddressList } from "@/components/account/account-address-list";
+import { AccountAddressForm } from "@/components/account/account-address-form";
+import { getAccountAddresses } from "@/features/account/account.repository";
 
 interface AddressItem {
   id: string;
@@ -20,6 +23,7 @@ export default function AccountAddressesPage() {
 
   const [userId, setUserId] = useState<string | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
+  const [authError, setAuthError] = useState(false);
 
   const [editingAddressId, setEditingAddressId] = useState<string | null>(null);
   const [newAddrName, setNewAddrName] = useState("");
@@ -31,12 +35,11 @@ export default function AccountAddressesPage() {
   useEffect(() => {
     const checkSession = async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session?.user) {
-          setUserId(session.user.id);
-        }
+        const { data: { user }, error } = await supabase.auth.getUser();
+        if (error || !user) throw new Error("ACCOUNT_AUTH_REQUIRED");
+        setUserId(user.id);
       } catch {
-        console.error("Lỗi trạm gác kết nối phiên");
+        setAuthError(true);
       } finally {
         setAuthLoading(false);
       }
@@ -45,27 +48,11 @@ export default function AccountAddressesPage() {
   }, []);
 
   // KHƠI THÔNG MẠCH ĐỌC LIVE TỪ TẦNG SÂU CLOUD DATABASE (ĐÃ VÁ MÀNG PHÒNG VỆ CORS)
-  const { data: addresses, isLoading, isError, error } = useQuery<AddressItem[]>({
+  const { data: addresses, isLoading, isError } = useQuery<AddressItem[]>({
     queryKey: ["account-addresses", userId],
     queryFn: async () => {
       if (!userId) return [];
-      try {
-        const { data, error: fetchErr } = await supabase
-          .from("addresses")
-          .select("id, name, phone, area, detail")
-          .order("created_at", { ascending: false });
-
-        if (fetchErr) throw fetchErr;
-        return data as AddressItem[];
-      } catch (err) {
-        // ✔️ KHỬ LỖI CHÍ MẠNG: Chuyển sang console.warn để dập tắt bảng đỏ Next.js khi dính lỗi CORS cổng 3001
-        console.warn("⚡ [MẠCH DỰ PHÒNG LAB]: Bị chặn kết nối CORS hoặc rớt mạng, nạp phôi địa chỉ tĩnh dự phòng.", err);
-
-        // Trả về dữ liệu địa chỉ tĩnh mặc định để giữ giao diện luôn vận hành thông suốt
-        return [
-          { id: "adr-1", name: "NÔNG ĐẶNG ĐÍCH", phone: "0844627115", area: "HANOI", detail: "Phòng nghiên cứu vi sinh Lab-A, Cầu Giấy, Hà Nội" }
-        ];
-      }
+      return getAccountAddresses(supabase);
     },
     enabled: !authLoading && !!userId,
   });
@@ -91,8 +78,8 @@ export default function AccountAddressesPage() {
       addToast({ title: "SỔ ĐỊA CHỈ", description: "Đã nạp tọa độ tiếp nhận mới vào Cloud.", type: "SUCCESS" });
       resetForm();
     },
-    onError: (err) => {
-      addToast({ title: "LỖI LƯU TRỮ", description: err.message, type: "ERROR" });
+    onError: () => {
+      addToast({ title: "LỖI LƯU TRỮ", description: "Không thể lưu địa chỉ lúc này. Vui lòng thử lại.", type: "ERROR" });
     }
   });
 
@@ -115,8 +102,8 @@ export default function AccountAddressesPage() {
       addToast({ title: "CẬP NHẬT LAB", description: "Đã hiệu chỉnh biến động tọa độ phòng thí nghiệm.", type: "SUCCESS" });
       resetForm();
     },
-    onError: (err) => {
-      addToast({ title: "LỖI CẬP NHẬT", description: err.message, type: "ERROR" });
+    onError: () => {
+      addToast({ title: "LỖI CẬP NHẬT", description: "Không thể cập nhật địa chỉ lúc này. Vui lòng thử lại.", type: "ERROR" });
     }
   });
 
@@ -131,8 +118,8 @@ export default function AccountAddressesPage() {
       addToast({ title: "SỔ ĐỊA CHỈ", description: "Đã xóa bản ghi tọa độ khỏi Cloud.", type: "SUCCESS" });
       if (editingAddressId) resetForm();
     },
-    onError: (err) => {
-      addToast({ title: "LỖI LỆNH XÓA", description: err.message, type: "ERROR" });
+    onError: () => {
+      addToast({ title: "LỖI LỆNH XÓA", description: "Không thể xóa địa chỉ lúc này. Vui lòng thử lại.", type: "ERROR" });
     }
   });
 
@@ -186,10 +173,11 @@ export default function AccountAddressesPage() {
     );
   }
 
-  if (isError) {
+  if (authError || isError) {
     return (
       <div className="border border-red-500/20 bg-red-500/5 p-4 flex items-center gap-2 font-mono text-xs text-red-400 w-full">
-        <AlertCircle className="w-4 h-4" /> Lỗi đồng bộ: {error instanceof Error ? error.message : "Xung đột cấu trúc cache"}
+        <AlertCircle className="w-4 h-4" /> Không thể tải sổ địa chỉ lúc này.
+        <button type="button" onClick={() => queryClient.invalidateQueries({ queryKey: ["account-addresses", userId] })} className="ml-auto min-h-9 border border-red-500/20 px-3 uppercase">Thử lại</button>
       </div>
     );
   }
@@ -203,8 +191,31 @@ export default function AccountAddressesPage() {
         <p className="text-[10px] font-mono text-text-dark uppercase">Liên thông dữ liệu trực tiếp với phễu quyết toán đơn hàng hỏa tốc</p>
       </div>
 
+      <AccountAddressList
+        addresses={addresses || []}
+        editingAddressId={editingAddressId}
+        deleting={deleteAddressMutation.isPending}
+        onEdit={handleStartEdit}
+        onDelete={(id) => deleteAddressMutation.mutate(id)}
+      />
+
+      <AccountAddressForm
+        name={newAddrName}
+        phone={newAddrPhone}
+        area={newAddrArea}
+        detail={newAddrDetail}
+        editing={editingAddressId !== null}
+        pending={addAddressMutation.isPending || updateAddressMutation.isPending}
+        onNameChange={setNewAddrName}
+        onPhoneChange={setNewAddrPhone}
+        onAreaChange={setNewAddrArea}
+        onDetailChange={setNewAddrDetail}
+        onCancel={resetForm}
+        onSubmit={handleFormSubmit}
+      />
+
       {/* LIST THẺ TỌA ĐỘ LAB LIVE */}
-      <div className="flex flex-col gap-4 w-full">
+      <div className="hidden">
         {addresses?.length === 0 ? (
           <div className="w-full py-12 border border-dashed border-white/10 text-center bg-black/10 flex flex-col items-center justify-center gap-2">
             <MapPin className="w-8 h-8 text-text-dark opacity-40" />
@@ -260,7 +271,7 @@ export default function AccountAddressesPage() {
       </div>
 
       {/* BIỂU MẪU ĐỘNG BIẾN ĐỔI CHẾ ĐỘ GIỮA THÊM/SỬA */}
-      <form onSubmit={handleFormSubmit} className="border border-white/5 bg-black/20 p-5 flex flex-col gap-5 font-mono text-xs w-full transition-all">
+      <form onSubmit={handleFormSubmit} className="hidden">
         <h3 className="font-heading font-bold text-xs uppercase tracking-wider border-b border-white/5 pb-3 text-text-pure flex items-center justify-between">
           <span className="flex items-center gap-1.5">
             {editingAddressId ? "Hiệu Chỉnh Biến Động Tọa Độ Lab" : "Cấy Tọa Độ Nhận Hàng Mới"}
@@ -275,11 +286,11 @@ export default function AccountAddressesPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="flex flex-col gap-1.5">
             <label className="text-[10px] text-text-dark uppercase tracking-wide">Tên kỹ sư thụ hưởng</label>
-            <input type="text" value={newAddrName} onChange={(e) => setNewAddrName(e.target.value)} required placeholder="Vd: NÔNG ĐẶNG ĐÍCH" className="bg-background-dark border border-white/10 p-3 text-text-pure outline-none focus:border-primary-neon uppercase font-bold text-xs" />
+            <input type="text" value={newAddrName} onChange={(e) => setNewAddrName(e.target.value)} required placeholder="Nhập tên người nhận" className="bg-background-dark border border-white/10 p-3 text-text-pure outline-none focus:border-primary-neon uppercase font-bold text-xs" />
           </div>
           <div className="flex flex-col gap-1.5">
             <label className="text-[10px] text-text-dark uppercase tracking-wide">Số điện thoại liên lạc</label>
-            <input type="tel" value={newAddrPhone} onChange={(e) => setNewAddrPhone(e.target.value)} required placeholder="Vd: 0844627115" className="bg-background-dark border border-white/10 p-3 text-text-pure outline-none focus:border-primary-neon text-xs" />
+            <input type="tel" value={newAddrPhone} onChange={(e) => setNewAddrPhone(e.target.value)} required placeholder="Nhập số điện thoại" className="bg-background-dark border border-white/10 p-3 text-text-pure outline-none focus:border-primary-neon text-xs" />
           </div>
         </div>
 

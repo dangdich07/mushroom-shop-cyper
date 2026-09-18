@@ -12,30 +12,32 @@ export default function CheckoutPage() {
 
   return (
     <PageWrapper>
-      <div className="relative min-h-screen py-10 border-b border-white/5 text-xs font-mono">
+      <div className="relative min-h-screen min-w-0 overflow-x-clip border-b border-white/5 py-8 font-mono text-xs sm:py-10">
         <Container>
           
           {/* THANH ĐIỀU HƯỚNG NGƯỢC DÒNG */}
           <button 
             type="button" 
             onClick={() => router.push("/cart")} 
-            className="text-[10px] text-text-dark hover:text-primary-cyan uppercase tracking-widest flex items-center gap-1 mb-6 transition-colors cursor-pointer"
+            className="mb-6 flex min-h-11 items-center gap-1 text-[10px] uppercase tracking-widest text-text-dark hover:text-primary-cyan focus-visible:bio-focus"
           >
             <ChevronLeft className="w-3.5 h-3.5" /> HOÀN TÁC VỀ KHAY NGHIỆM THU
           </button>
 
           {/* TIÊU ĐỀ PHÂN KHU */}
-          <div className="flex flex-col gap-2 mb-8 border-b border-white/5 pb-6">
+          <header className="relative mb-8 flex min-w-0 flex-col gap-2 overflow-hidden border-b border-white/5 pb-6">
+            <div aria-hidden="true" className="pointer-events-none absolute -right-20 top-0 h-32 w-72 bg-primary-neon/[0.04] blur-3xl" />
             <span className="text-[10px] text-primary-cyan uppercase tracking-widest">Giao Thức Bảo Mật Production</span>
-            <h1 className="text-3xl font-heading font-black uppercase text-text-pure tracking-tight">Phễu Quyết Toán Sinh Khối</h1>
-          </div>
+            <h1 className="relative break-words font-heading text-3xl font-black uppercase tracking-tight text-text-pure sm:text-4xl">Phễu Quyết Toán Sinh Khối</h1>
+            <p className="relative max-w-2xl break-words text-[10px] uppercase leading-relaxed text-text-dark">Xác nhận thông tin giao nhận và phương thức thanh toán trước khi tạo vận đơn.</p>
+          </header>
 
           {/* KÍCH HOẠT THÀNH PHẦN HOÀN CHỈNH MỚI 
             Bọc trong Suspense để xử lý màng bọc useSearchParams() của Next.js 15 không bị lỗi Prerender Static Error
           */}
           <Suspense fallback={
-            <div className="py-20 flex items-center justify-center text-primary-neon animate-pulse">
-              <Activity className="w-4 h-4 animate-spin mr-2" /> Đang thiết lập trục an ninh biểu mẫu quyết toán...
+            <div className="flex min-h-[45vh] items-center justify-center px-4 py-20 text-center text-primary-neon" role="status">
+              <Activity aria-hidden="true" className="mr-2 h-4 w-4 animate-spin motion-reduce:animate-none" /> Đang thiết lập trục an ninh biểu mẫu quyết toán...
             </div>
           }>
             <CheckoutForm />

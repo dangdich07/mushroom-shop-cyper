@@ -2,8 +2,7 @@ import type { Metadata } from "next";
 import { Inter, Space_Grotesk, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
-import { Header } from "@/components/layout/header";
-import { Footer } from "@/components/layout/footer";
+import { SiteChrome } from "@/components/layout/site-chrome";
 import { ToastContainer } from "@/components/ui/toast";
 import { LoadingPortal } from "@/components/ui/loading-portal";
 import { CommandMenu } from "@/components/common/command-menu";
@@ -21,16 +20,23 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="vi" className={`${inter.variable} ${spaceGrotesk.variable} ${jetbrainsMono.variable}`}>
+    <html lang="vi" data-theme="dark" suppressHydrationWarning className={`${inter.variable} ${spaceGrotesk.variable} ${jetbrainsMono.variable}`}>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var t=localStorage.getItem('cybermushroom-theme');t=t==='light'?'light':'dark';document.documentElement.dataset.theme=t;document.documentElement.style.colorScheme=t}catch(e){document.documentElement.dataset.theme='dark'}})();`,
+          }}
+        />
+      </head>
       <body className="bg-background-deep text-text-muted antialiased flex flex-col min-h-screen">
         <div className="fixed inset-0 cyber-grid pointer-events-none z-0 opacity-40" />
-        <div className="fixed inset-0 bg-gradient-to-tr from-[#030712] via-[#050816] to-[#0b1120] pointer-events-none z-[-1]" />
+        <div className="site-background-gradient fixed inset-0 pointer-events-none z-[-1]" />
         <Providers>
-          <Header />
-          <div className="relative z-10 flex-grow w-full pt-20">
-            {children}
-          </div>
-          <Footer />
+          <SiteChrome>
+            <div className="relative z-10 w-full flex-grow">
+              {children}
+            </div>
+          </SiteChrome>
           
           <ToastContainer />
           <LoadingPortal />

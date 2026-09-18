@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { Voucher } from "@/services/mockDb";
+import type { Voucher } from "@/types/voucher.types";
 
 export interface CartItem {
   id: string;

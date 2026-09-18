@@ -1,31 +1,34 @@
 "use server";
 
-import { supabaseServiceRole } from "@/lib/supabaseServiceRole";
 import { revalidatePath } from "next/cache";
+import type { VoucherActionPayload } from "@/features/admin/vouchers/admin-vouchers.types";
 import { requireAdmin } from "@/lib/adminAuth";
+import { supabaseServiceRole } from "@/lib/supabaseServiceRole";
 
-interface VoucherPayload {
-  code: string;
-  discount_type: "PERCENT" | "FIXED";
-  discount_value: number;
-  min_subtotal: number;
-  description: string;
-  expiry_date: string;
+interface AdminActionResponse { success: boolean; error?: string }
+
+function isValidDate(value: string) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(new Date(`${value}T00:00:00Z`).getTime());
 }
 
-interface AdminActionResponse {
-  success: boolean;
-  error?: string;
+function validateVoucher(payload: VoucherActionPayload) {
+  const code = payload.code.trim();
+  return Boolean(
+    code.length >= 2 && code.length <= 50 &&
+    ["PERCENT", "FIXED"].includes(payload.discount_type) &&
+    Number.isFinite(payload.discount_value) && payload.discount_value > 0 &&
+    (payload.discount_type !== "PERCENT" || payload.discount_value <= 100) &&
+    Number.isFinite(payload.min_subtotal) && payload.min_subtotal >= 0 &&
+    payload.description.trim().length > 0 && payload.description.length <= 1000 &&
+    isValidDate(payload.expiry_date)
+  );
 }
 
-// HÀM VẠN NĂNG: TỰ ĐỘNG CHUYỂN ĐỔI GIỮA INSERT HOẶC UPDATE THEO KIỂU UPSERT
-export async function saveVoucherAdminAction(
-  payload: VoucherPayload, 
-  editingCode: string | null,
-  accessToken: string
-): Promise<AdminActionResponse> {
+export async function saveVoucherAdminAction(payload: VoucherActionPayload, editingCode: string | null): Promise<AdminActionResponse> {
   try {
-    await requireAdmin(accessToken);
+    await requireAdmin();
+    if (!validateVoucher(payload)) return { success: false, error: "Thông tin voucher không hợp lệ." };
+
     const databasePayload = {
       code: payload.code.toUpperCase().trim(),
       discount_type: payload.discount_type,
@@ -34,45 +37,29 @@ export async function saveVoucherAdminAction(
       description: payload.description.trim(),
       expiry_date: payload.expiry_date,
     };
-
-    if (editingCode) {
-      // Luồng hiệu chỉnh thông số mã cũ
-      const { error } = await supabaseServiceRole
-        .from("vouchers")
-        .update(databasePayload)
-        .eq("code", editingCode);
-      if (error) throw error;
-    } else {
-      // Luồng cấy phôi mã hoàn toàn mới
-      const { error } = await supabaseServiceRole
-        .from("vouchers")
-        .insert([databasePayload]);
-      if (error) throw error;
-    }
+    const mutation = editingCode
+      ? supabaseServiceRole.from("vouchers").update(databasePayload).eq("code", editingCode.toUpperCase().trim())
+      : supabaseServiceRole.from("vouchers").insert(databasePayload);
+    const { error } = await mutation;
+    if (error) return { success: false, error: "Không thể lưu voucher lúc này. Hãy kiểm tra mã voucher có bị trùng hay không." };
 
     revalidatePath("/admin/vouchers");
     return { success: true };
-  } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : "Crash hệ mạch lưu trữ ưu đãi.";
-    return { success: false, error: msg };
+  } catch {
+    return { success: false, error: "Không thể lưu voucher lúc này." };
   }
 }
 
-// LỆNH TIÊU HỦY VOUCHER KHỎI HỆ THỐNG
-export async function deleteVoucherAdminAction(voucherCode: string, accessToken: string): Promise<AdminActionResponse> {
+export async function deleteVoucherAdminAction(voucherCode: string): Promise<AdminActionResponse> {
   try {
-    await requireAdmin(accessToken);
-    const { error } = await supabaseServiceRole
-      .from("vouchers")
-      .delete()
-      .eq("code", voucherCode);
-
-    if (error) throw error;
-
+    await requireAdmin();
+    const code = voucherCode.toUpperCase().trim();
+    if (code.length < 2 || code.length > 50) return { success: false, error: "Mã voucher không hợp lệ." };
+    const { error } = await supabaseServiceRole.from("vouchers").delete().eq("code", code);
+    if (error) return { success: false, error: "Không thể xóa voucher lúc này." };
     revalidatePath("/admin/vouchers");
     return { success: true };
-  } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : "Lỗi thực thi lệnh tiêu hủy.";
-    return { success: false, error: msg };
+  } catch {
+    return { success: false, error: "Không thể xóa voucher lúc này." };
   }
 }

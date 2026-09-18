@@ -1,19 +1,11 @@
 import { DatabaseSchema, OrderLog, ProductReview } from "@/types/db.types";
 import { Product } from "@/types/product.types";
+import type { Voucher } from "@/types/voucher.types";
 import { supabase } from "@/lib/supabaseClient";
 
 // ==========================================================
 // 1. ĐỊNH NGHĨA HỆ THỐNG INTERFACES NÂNG CAO CAO CẤP
 // ==========================================================
-
-export interface Voucher {
-  code: string;
-  discountType: "PERCENT" | "FIXED";
-  discountValue: number;
-  minSubtotal: number;
-  description: string;
-  expiryDate: string;
-}
 
 export interface AddressItem {
   id: string;

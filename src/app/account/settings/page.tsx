@@ -1,20 +1,26 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { useOverlayStore } from "@/store/useOverlayStore";
 import { ShieldAlert, KeyRound, Save, Activity, User, Camera } from "lucide-react";
+import { getAccountProfile } from "@/features/account/account.repository";
 
 export default function ProfileSettingsPage() {
+  const router = useRouter();
   const { addToast, setGlobalLoading } = useOverlayStore();
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [isLoadingProfile, setIsLoadingProfile] = useState(true);
+  const [profileError, setProfileError] = useState(false);
 
   // 1. STATE QUẢN TRỊ BIỂU MẪU HỒ SƠ ĐỊNH DANH (STATEFUL PROFILE FORM)
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
-  const [labPosition, setLabPosition] = useState("KỸ SƯ TRƯỞNG PHÒNG LAB-A");
+  const [labPosition, setLabPosition] = useState("");
   const [avatarUrl, setAvatarUrl] = useState("");
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [avatarPreviewUrl, setAvatarPreviewUrl] = useState("");
 
   // 2. STATE ĐIỀU BIẾN PHÂN HỆ BẢO MẬT KHÓA LÕI
   const [newPassword, setNewPassword] = useState("");
@@ -25,21 +31,15 @@ export default function ProfileSettingsPage() {
     const fetchUser = async () => {
       try {
         const { data: { user }, error } = await supabase.auth.getUser();
-        if (!error && user) {
-          setUserEmail(user.email ?? "Kỹ sư CyberMushroom");
-          
-          // Khôi phục trạng thái từ metadata đám mây, sử dụng phôi định danh tối ưu làm fallback mặc định
-          setFullName(user.user_metadata?.full_name || "NÔNG ĐẶNG ĐÍCH");
-          setPhone(user.user_metadata?.phone_number || "0844627115");
-          setLabPosition(user.user_metadata?.lab_position || "KỸ SƯ TRƯỞNG PHÒNG LAB-A");
-          setAvatarUrl(user.user_metadata?.avatar_url || "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=150&auto=format&fit=crop");
-        }
+        if (error || !user) throw new Error("ACCOUNT_AUTH_REQUIRED");
+        const profile = await getAccountProfile(supabase, user.id);
+        setUserEmail(user.email ?? profile.email);
+        setFullName(profile.fullName);
+        setPhone(profile.phoneNumber);
+        setLabPosition(profile.labPosition);
+        setAvatarUrl(profile.avatarUrl);
       } catch {
-        // Môi trường thử nghiệm offline fallback static assets
-        setUserEmail("dichnd@cybermushroom.vbi");
-        setFullName("NÔNG ĐẶNG ĐÍCH");
-        setPhone("0844627115");
-        setAvatarUrl("https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=150&auto=format&fit=crop");
+        setProfileError(true);
       } finally {
         setIsLoadingProfile(false);
       }
@@ -47,23 +47,33 @@ export default function ProfileSettingsPage() {
     fetchUser();
   }, []);
 
+  useEffect(() => {
+    return () => {
+      if (avatarPreviewUrl) URL.revokeObjectURL(avatarPreviewUrl);
+    };
+  }, [avatarPreviewUrl]);
+
   // HẠ TẦNG XỬ LÝ MÃ HÓA TẢI LÊN AVATAR PHÔI ẢNH ĐẠI DIỆN
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.size > 2 * 1024 * 1024) {
-      addToast({ title: "VƯỢT DUNG LƯỢNG", description: "Kích thước ảnh đại diện phòng Lab không được vượt quá 2MB.", type: "ERROR" });
+    if (!(["image/jpeg", "image/png", "image/webp"] as string[]).includes(file.type)) {
+      addToast({ title: "ĐỊNH DẠNG KHÔNG HỢP LỆ", description: "Chỉ chấp nhận ảnh JPEG, PNG hoặc WebP.", type: "ERROR" });
+      e.target.value = "";
       return;
     }
 
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      const base64String = reader.result as string;
-      setAvatarUrl(base64String);
-      addToast({ title: "MÃ HÓA ẢNH", description: "Đã băm chuỗi Base64 phôi ảnh thành công. Nhấn cập nhật để lưu kho.", type: "SUCCESS" });
-    };
-    reader.readAsDataURL(file);
+    if (file.size > 2 * 1024 * 1024) {
+      addToast({ title: "VƯỢT DUNG LƯỢNG", description: "Kích thước ảnh đại diện phòng Lab không được vượt quá 2MB.", type: "ERROR" });
+      e.target.value = "";
+      return;
+    }
+
+    if (avatarPreviewUrl) URL.revokeObjectURL(avatarPreviewUrl);
+    setAvatarFile(file);
+    setAvatarPreviewUrl(URL.createObjectURL(file));
+    addToast({ title: "ẢNH ĐÃ SẴN SÀNG", description: "Nhấn đồng bộ thông tin hồ sơ để tải ảnh lên.", type: "SUCCESS" });
   };
 
   // ĐƯỜNG ỐNG ĐỒNG BỘ THÔNG TIN HỒ SƠ LÊN CLOUD METADATA ENGINE
@@ -76,20 +86,45 @@ export default function ProfileSettingsPage() {
 
     setGlobalLoading(true);
     try {
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError || !user) throw new Error("ACCOUNT_AUTH_REQUIRED");
+
+      let nextAvatarUrl = avatarUrl.startsWith("data:") ? "" : avatarUrl;
+      if (avatarFile) {
+        const avatarPath = `${user.id}/avatar`;
+        const { error: uploadError } = await supabase.storage
+          .from("avatars")
+          .upload(avatarPath, avatarFile, {
+            cacheControl: "3600",
+            contentType: avatarFile.type,
+            upsert: true
+          });
+        if (uploadError) throw uploadError;
+
+        const { data: publicUrlData } = supabase.storage.from("avatars").getPublicUrl(avatarPath);
+        nextAvatarUrl = `${publicUrlData.publicUrl}?v=${Date.now()}`;
+      }
+
       const { error } = await supabase.auth.updateUser({
         data: {
           full_name: fullName.toUpperCase().trim(),
           phone_number: phone.trim(),
           lab_position: labPosition,
-          avatar_url: avatarUrl
+          avatar_url: nextAvatarUrl
         }
       });
 
       if (error) throw error;
+      setAvatarUrl(nextAvatarUrl);
+      setAvatarFile(null);
+      if (avatarPreviewUrl) {
+        URL.revokeObjectURL(avatarPreviewUrl);
+        setAvatarPreviewUrl("");
+      }
       addToast({ title: "ĐỒNG BỘ HỒ SƠ", description: "Dữ liệu định danh nhân sự phòng thí nghiệm đã được lưu vĩnh viễn.", type: "SUCCESS" });
-    } catch (err: unknown) {
-      const errorMsg = err instanceof Error ? err.message : "Gãy liên kết đồng bộ siêu dữ liệu hồ sơ.";
-      addToast({ title: "LỖI PHỄU TRUYỀN", description: errorMsg, type: "ERROR" });
+      router.refresh();
+    } catch {
+      addToast({ title: "LỖI PHỄU TRUYỀN", description: "Không thể cập nhật hồ sơ lúc này. Vui lòng thử lại.", type: "ERROR" });
     } finally {
       setGlobalLoading(false);
     }
@@ -126,9 +161,8 @@ export default function ProfileSettingsPage() {
       addToast({ title: "ĐỒNG BỘ THÀNH CÔNG", description: "Mật mã khóa lõi hệ thống đã được tái cấu trúc thành công.", type: "SUCCESS" });
       setNewPassword("");
       setConfirmPassword("");
-    } catch (err: unknown) {
-      const errorMsg = err instanceof Error ? err.message : "Xung đột cổng xác thực dữ liệu từ xa.";
-      addToast({ title: "BẺ GÃY TIẾN TRÌNH", description: errorMsg, type: "ERROR" });
+    } catch {
+      addToast({ title: "BẺ GÃY TIẾN TRÌNH", description: "Không thể cập nhật mật khẩu lúc này. Vui lòng thử lại.", type: "ERROR" });
     } finally {
       setGlobalLoading(false);
     }
@@ -138,6 +172,15 @@ export default function ProfileSettingsPage() {
     return (
       <div className="font-mono text-xs text-primary-neon flex items-center gap-2 py-6">
         <Activity className="w-4 h-4 animate-spin" /> Đang giải mật hồ sơ bảo mật người dùng...
+      </div>
+    );
+  }
+
+  if (profileError) {
+    return (
+      <div role="alert" className="border border-red-500/20 bg-red-500/5 p-5 font-mono text-xs text-red-400">
+        Không thể tải hồ sơ tài khoản lúc này.
+        <button type="button" onClick={() => window.location.reload()} className="ml-3 min-h-10 border border-red-500/20 px-3 uppercase">Thử lại</button>
       </div>
     );
   }
@@ -162,16 +205,22 @@ export default function ProfileSettingsPage() {
             {/* AVATAR BOX KIẾN TRÚC MÃ HÓA */}
             <div className="flex flex-col sm:flex-row items-center gap-5 p-4 border border-white/5 bg-black/20 font-mono text-xs">
               <div className="relative w-16 h-16 border border-primary-cyan/40 bg-background-dark overflow-hidden group shrink-0">
-                <img src={avatarUrl} alt="Proxy Identity" className="w-full h-full object-cover opacity-75 group-hover:scale-105 transition-transform duration-300" />
+                {avatarPreviewUrl || (avatarUrl && !avatarUrl.startsWith("data:")) ? (
+                  <img src={avatarPreviewUrl || avatarUrl} alt="Ảnh đại diện tài khoản" className="w-full h-full object-cover opacity-75 group-hover:scale-105 transition-transform duration-300" />
+                ) : (
+                  <span className="flex h-full w-full items-center justify-center text-text-dark" aria-label="Chưa có ảnh đại diện">
+                    <User className="h-6 w-6" aria-hidden="true" />
+                  </span>
+                )}
                 <label className="absolute inset-0 bg-black/70 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 cursor-pointer text-[9px] text-primary-cyan font-bold gap-0.5">
                   <Camera className="w-3.5 h-3.5" />
                   <span>NẠP PHÔI</span>
-                  <input type="file" accept="image/*" onChange={handleAvatarChange} className="hidden" />
+                  <input type="file" accept="image/jpeg,image/png,image/webp" onChange={handleAvatarChange} className="hidden" />
                 </label>
               </div>
               <div className="flex flex-col gap-1 text-center sm:text-left">
                 <span className="text-text-pure font-bold uppercase tracking-wide text-[11px]">Sơ đồ sinh trắc học đại diện</span>
-                <p className="text-[10px] text-text-dark leading-tight max-w-sm">Hỗ trợ định dạng phôi ảnh JPEG/PNG dưới 2MB. Chuỗi Base64 sẽ được băm tự động đồng bộ lên tài khoản.</p>
+                <p className="text-[10px] text-text-dark leading-tight max-w-sm">Hỗ trợ ảnh JPEG, PNG hoặc WebP dưới 2MB. Ảnh sẽ được tải lên kho lưu trữ khi đồng bộ hồ sơ.</p>
               </div>
             </div>
 
@@ -182,7 +231,7 @@ export default function ProfileSettingsPage() {
                   type="text" 
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
-                  placeholder="Vd: NÔNG ĐẶNG ĐÍCH" 
+                  placeholder="Nhập họ và tên"
                   className="bg-background-dark border border-white/10 p-3 text-text-pure outline-none focus:border-primary-cyan uppercase font-bold" 
                 />
               </div>
@@ -192,7 +241,7 @@ export default function ProfileSettingsPage() {
                   type="tel" 
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
-                  placeholder="Vd: 0844627115" 
+                  placeholder="Nhập số điện thoại"
                   className="bg-background-dark border border-white/10 p-3 text-text-pure outline-none focus:border-primary-cyan" 
                 />
               </div>

@@ -1,130 +1,35 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useOverlayStore } from "@/store/useOverlayStore";
-import { MockDbService, NotificationItem } from "@/services/mockDb";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Terminal, Trash2 } from "lucide-react";
+import { AccountNotificationList } from "@/components/account/account-notification-list";
+import { AccountSectionToolbar } from "@/components/account/account-section-toolbar";
+import { AccountStatePanel } from "@/components/account/account-state-panel";
+import { deleteAccountNotifications, getAccountNotifications } from "@/features/account/account.repository";
 import { supabase } from "@/lib/supabaseClient";
-import { Activity, AlertCircle, Bell, Terminal, Trash2 } from "lucide-react";
+import { useOverlayStore } from "@/store/useOverlayStore";
 
 export default function AccountNotificationsPage() {
   const queryClient = useQueryClient();
   const { addToast } = useOverlayStore();
-  
-  const [userId, setUserId] = useState<string | null>(null);
-  const [authLoading, setAuthLoading] = useState(true);
-
-  // Trích xuất ID phiên kết nối vô trùng từ Supabase Session
-  useEffect(() => {
-    const checkSession = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session?.user) {
-          setUserId(session.user.id);
-        } else {
-          setUserId("usr-01");
-        }
-      } catch {
-        setUserId("usr-01");
-      } finally {
-        setAuthLoading(false);
-      }
-    };
-    checkSession();
-  }, []);
-
-  // TRUY QUÉT DÒNG LOGS THÔNG BÁO TỪ TRỤC DỊCH VỤ CỐT LÕI
-  const { data: notifications, isLoading, isError, error } = useQuery<NotificationItem[]>({
-    queryKey: ["account-notifications", userId],
-    queryFn: async () => {
-      if (!userId) return [];
-      return MockDbService.getNotifications(userId);
+  const notificationsQuery = useQuery({ queryKey: ["account-notifications"], queryFn: () => getAccountNotifications(supabase) });
+  const clearMutation = useMutation({
+    mutationFn: () => deleteAccountNotifications(supabase),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["account-notifications"] });
+      addToast({ title: "LOGS CLEANED", description: "Đã dọn sạch toàn bộ thông báo.", type: "SUCCESS" });
     },
-    enabled: !authLoading && !!userId, // Chỉ kích hoạt khi đã giải mã xong Session
+    onError: () => addToast({ title: "KHÔNG THỂ XÓA", description: "Thông báo chưa được xóa. Vui lòng thử lại.", type: "ERROR" }),
   });
 
-  // LỆNH THANH TRỪNG BẢN GHI LOGS TRÊN TOÀN TRỤC
-  const clearNotificationsMutation = useMutation({
-    mutationFn: async () => {
-      if (!userId) throw new Error("Chưa xác định danh tính kỹ sư.");
-      return MockDbService.clearNotifications(userId);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["account-notifications", userId] });
-      addToast({ title: "LOGS CLEANED", description: "Đã dọn sạch toàn bộ bộ nhớ đệm Logs thông báo.", type: "SUCCESS" });
-    }
-  });
+  if (notificationsQuery.isLoading) return <AccountStatePanel kind="LOADING" message="Đang đồng bộ hóa thông báo..." />;
+  if (notificationsQuery.isError) return <div className="space-y-3"><AccountStatePanel kind="ERROR" message="Không thể tải thông báo lúc này." /><button type="button" onClick={() => notificationsQuery.refetch()} className="min-h-11 border border-primary-cyan/30 px-4 font-mono text-xs uppercase text-primary-cyan">Thử lại</button></div>;
 
-  if (authLoading || isLoading) {
-    return (
-      <div className="flex items-center justify-center py-12 font-mono text-xs text-primary-neon w-full">
-        <Activity className="w-4 h-4 animate-spin mr-2" /> Đang đồng bộ hóa hệ thống Logs cảnh báo từ Cloud...
-      </div>
-    );
-  }
-
-  if (isError) {
-    return (
-      <div className="border border-red-500/20 bg-red-500/5 p-4 flex items-center gap-2 font-mono text-xs text-red-400 w-full">
-        <AlertCircle className="w-4 h-4" /> Lỗi tải luồng dữ liệu: {error instanceof Error ? error.message : "Xung đột cổng"}
-      </div>
-    );
-  }
-
-  const listNotifications = notifications || [];
-
+  const notifications = notificationsQuery.data ?? [];
   return (
-    <div className="flex flex-col gap-6 animate-in fade-in duration-300 w-full">
-      {/* THANH ĐIỀU HƯỚNG TIÊU ĐỀ LỚP TRÊN */}
-      <div className="flex justify-between items-center border-b border-white/5 pb-3 w-full">
-        <div className="flex flex-col gap-0.5">
-          <h2 className="text-base font-heading font-black uppercase text-text-pure tracking-widest flex items-center gap-2">
-            <Terminal className="w-4 h-4 text-primary-cyan" /> Trung tâm Logs thông báo hệ sinh thái
-          </h2>
-          <p className="text-[10px] font-mono text-text-dark uppercase">Nhật ký theo dõi biến động mạch dữ liệu sinh học</p>
-        </div>
-        
-        {listNotifications.length > 0 && (
-          <button 
-            type="button" 
-            onClick={() => clearNotificationsMutation.mutate()} 
-            disabled={clearNotificationsMutation.isPending}
-            className="font-mono text-[10px] uppercase font-bold text-text-dark hover:text-red-400 border border-white/5 hover:border-red-500/20 px-2.5 py-1.5 bg-white/2 hover:bg-red-500/5 transition-all cursor-pointer disabled:opacity-50 flex items-center gap-1"
-          >
-            <Trash2 className="w-3 h-3" /> Xóa sạch bộ nhớ Logs
-          </button>
-        )}
-      </div>
-      
-      {/* THỰC THI HIỂN THỊ DANH SÁCH DỰA TRÊN DỮ LIỆU ĐỐI SOÁT */}
-      {listNotifications.length === 0 ? (
-        <div className="w-full py-16 border border-dashed border-white/10 text-center bg-black/10 flex flex-col items-center justify-center gap-2">
-          <Bell className="w-8 h-8 text-text-dark opacity-30 animate-pulse" />
-          <p className="font-mono text-xs text-text-dark uppercase">Hộp thông báo trống rỗng. Chưa có xung sự kiện mới.</p>
-        </div>
-      ) : (
-        <div className="flex flex-col gap-3 font-mono text-xs w-full">
-          {listNotifications.map((ntf) => (
-            <div 
-              key={ntf.id} 
-              className="border border-white/5 p-4 bg-background-card/20 relative group w-full hover:border-primary-cyan/30 hover:bg-black/30 transition-all duration-200"
-            >
-              <div className="flex justify-between items-center mb-1.5">
-                <span className="font-bold text-primary-cyan uppercase tracking-wide text-[11px] flex items-center gap-1.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-primary-neon animate-ping" />
-                  ⚡ {ntf.title}
-                </span>
-                <span className="text-[10px] text-text-dark bg-white/5 px-2 py-0.5 border border-white/5 rounded-sm">
-                  {ntf.time}
-                </span>
-              </div>
-              <p className="text-text-muted leading-relaxed text-xs pl-4 border-l border-white/10 group-hover:border-primary-cyan/40 transition-colors">
-                {ntf.desc}
-              </p>
-            </div>
-          ))}
-        </div>
-      )}
+    <div className="flex min-w-0 flex-col gap-6">
+      <AccountSectionToolbar icon={<Terminal className="h-4 w-4" />} title="Trung tâm Logs thông báo hệ sinh thái" description="Nhật ký theo dõi biến động dữ liệu" action={notifications.length > 0 ? <button type="button" onClick={() => clearMutation.mutate()} disabled={clearMutation.isPending} className="inline-flex min-h-11 items-center gap-2 border border-white/10 px-3 font-mono text-[10px] font-bold uppercase text-text-dark hover:border-red-500/30 hover:text-red-400 disabled:opacity-50"><Trash2 aria-hidden="true" className="h-3 w-3" />{clearMutation.isPending ? "Đang xóa..." : "Xóa sạch thông báo"}</button> : undefined} />
+      <AccountNotificationList notifications={notifications} />
     </div>
   );
 }

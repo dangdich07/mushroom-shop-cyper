@@ -1,96 +1,37 @@
 "use client";
 
-import React from "react";
-import { useParams, useRouter } from "next/navigation";
+import Link from "next/link";
+import { useParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { MockDbService, Blog } from "@/services/mockDb"; //
+import { ChevronLeft } from "lucide-react";
+import { BlogCoverImage } from "@/components/blog/blog-cover-image";
+import { BlogDetailHeader } from "@/components/blog/blog-detail-header";
+import { BlogStatePanel } from "@/components/blog/blog-state-panel";
 import { Container } from "@/components/layout/container";
 import { PageWrapper } from "@/components/layout/page-wrapper";
-import { Calendar, Clock, Eye, ChevronLeft, Activity, AlertCircle, User } from "lucide-react";
+import { getBlogPost } from "@/features/blog/blog.repository";
+import { supabase } from "@/lib/supabaseClient";
 
 export default function BlogDetailPage() {
-  const params = useParams();
-  const router = useRouter();
-  const slug = params?.slug as string;
-
-  // Gọi API trích xuất chi tiết logs cẩm nang tri thức
-  const { data: post, isLoading, isError, error } = useQuery<Blog | null>({
-    queryKey: ["blog-detail", slug],
-    queryFn: async () => {
-      if (!slug) return null;
-      return MockDbService.getBlogDetail(slug);
-    },
-    enabled: !!slug,
-  });
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center font-mono text-xs text-primary-neon">
-        <Activity className="w-4 h-4 animate-spin mr-2" /> Đang nạp phân khu tri thức lượng tử...
-      </div>
-    );
-  }
-
-  if (isError || !post) {
-    return (
-      <Container className="py-12">
-        <div className="border border-red-500/20 bg-red-500/5 p-4 flex items-center gap-2 font-mono text-xs text-red-400 w-full mb-4">
-          <AlertCircle className="w-4 h-4" /> {isError ? `Lỗi: ${error?.message}` : "Mã định danh Logs bài viết không tồn tại trên hệ thống."}
-        </div>
-        <button type="button" onClick={() => router.push("/blog")} className="text-primary-cyan font-mono text-xs flex items-center gap-1 hover:underline cursor-pointer">
-          <ChevronLeft className="w-4 h-4" /> Quay lại thư viện
-        </button>
-      </Container>
-    );
-  }
+  const params = useParams<{ slug: string }>();
+  const slug = params?.slug ?? "";
+  const postQuery = useQuery({ queryKey: ["blog-detail", slug], queryFn: () => getBlogPost(supabase, slug), enabled: Boolean(slug) });
 
   return (
     <PageWrapper>
-      <div className="relative min-h-screen py-10 border-b border-white/5">
+      <main className="relative min-h-screen border-b border-white/5 py-10">
         <Container className="max-w-4xl">
-          {/* NÚT ĐIỀU HƯỚNG QUAY LẠI */}
-          <button 
-            type="button" 
-            onClick={() => router.push("/blog")} 
-            className="text-text-dark hover:text-primary-cyan font-mono text-[11px] font-bold uppercase tracking-widest flex items-center gap-1 mb-6 transition-colors cursor-pointer group"
-          >
-            <ChevronLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" /> [ QUAY LẠI THƯ VIỆN LƯU TRỮ ]
-          </button>
-
-          {/* KHỐI TIÊU ĐỀ & METADATA BÀI VIẾT */}
-          <div className="flex flex-col gap-4 border-b border-white/5 pb-6 mb-8">
-            <h1 className="text-2xl sm:text-4xl font-heading font-black uppercase text-text-pure tracking-tight leading-tight">
-              {post.title}
-            </h1>
-            
-            <div className="flex flex-wrap items-center gap-4 font-mono text-[10px] text-text-dark uppercase tracking-wide">
-              <span className="flex items-center gap-1 text-primary-cyan"><User className="w-3.5 h-3.5" /> TAC GIẢ: {post.author.name} ({post.author.role})</span>
-              <span className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5" /> NGÀY: {post.publishedAt}</span>
-              <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" /> THỜI GIAN ĐỌC: {post.readTimeMinutes} PHÚT</span>
-              <span className="flex items-center gap-1"><Eye className="w-3.5 h-3.5" /> LƯỢT XEM: {post.viewCount}</span>
-            </div>
-          </div>
-
-          {/* BANNER ẢNH CHÍNH BÀI VIẾT */}
-          <div className="w-full h-[300px] sm:h-[450px] border border-white/5 bg-black/40 overflow-hidden mb-8">
-            <img src={post.coverImage} alt={post.title} className="w-full h-full object-cover opacity-75" />
-          </div>
-
-          {/* KHỐI NỘI DUNG CHÍNH (CONTENT STREAM) */}
-          <article className="font-mono text-xs text-text-muted leading-relaxed flex flex-col gap-4 whitespace-pre-wrap selection:bg-primary-neon selection:text-background-deep">
-            {post.content}
-          </article>
-
-          {/* KHỐI THẺ TAGS PHÂN LOẠI DƯỚI ĐÁY */}
-          <div className="mt-10 pt-6 border-t border-white/5 flex flex-wrap gap-2 font-mono text-[10px]">
-            {post.tags.map((tag) => (
-              <span key={tag} className="px-2.5 py-1 bg-white/5 border border-white/10 text-text-pure uppercase font-bold">
-                #{tag}
-              </span>
-            ))}
-          </div>
+          <Link href="/blog" className="group mb-6 inline-flex min-h-11 items-center gap-1 font-mono text-[11px] font-bold uppercase tracking-widest text-text-dark transition-colors hover:text-primary-cyan focus-visible:bio-focus motion-reduce:transition-none"><ChevronLeft aria-hidden="true" className="h-4 w-4 transition-transform group-hover:-translate-x-0.5 motion-reduce:transform-none motion-reduce:transition-none" />[ QUAY LẠI THƯ VIỆN LƯU TRỮ ]</Link>
+          {postQuery.isLoading ? <BlogStatePanel kind="LOADING" message="Đang nạp phân khu tri thức lượng tử..." /> : postQuery.isError ? <BlogStatePanel kind="ERROR" message="Không thể tải bài viết lúc này." action={<button type="button" onClick={() => postQuery.refetch()} className="min-h-11 border border-current/30 px-4 font-mono text-xs font-bold uppercase focus-visible:bio-focus">Thử lại</button>} /> : !postQuery.data ? <BlogStatePanel kind="EMPTY" message="Mã định danh bài viết không tồn tại trên hệ thống." /> : (
+            <article className="min-w-0">
+              <BlogDetailHeader post={postQuery.data} />
+              <div className="mb-8 h-[300px] w-full overflow-hidden border border-white/5 bg-black/40 sm:h-[450px]"><BlogCoverImage src={postQuery.data.coverImage} alt={postQuery.data.title} className="h-full w-full object-cover opacity-75" /></div>
+              <div className="flex min-w-0 flex-col gap-4 whitespace-pre-wrap break-words font-mono text-xs leading-relaxed text-text-muted selection:bg-primary-neon selection:text-background-deep">{postQuery.data.content}</div>
+              <div aria-label="Từ khóa bài viết" className="mt-10 flex flex-wrap gap-2 border-t border-white/5 pt-6 font-mono text-[10px]">{postQuery.data.tags.map((tag) => <span key={tag} className="break-words border border-white/10 bg-white/5 px-2.5 py-1 font-bold uppercase text-text-pure">#{tag}</span>)}</div>
+            </article>
+          )}
         </Container>
-      </div>
+      </main>
     </PageWrapper>
   );
 }

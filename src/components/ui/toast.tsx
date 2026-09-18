@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { CheckCircle2, AlertTriangle, Info, X } from "lucide-react";
 import { useOverlayStore, SystemToast } from "@/store/useOverlayStore";
 
@@ -9,7 +9,10 @@ export function ToastContainer() {
   const { toasts, dismissToast } = useOverlayStore();
 
   return (
-    <div className="fixed bottom-5 right-5 z-[100] flex flex-col gap-3 w-full max-w-sm pointer-events-none">
+    <div
+      className="fixed bottom-5 right-5 z-[100] flex flex-col gap-3 w-full max-w-sm pointer-events-none"
+      aria-label="Thông báo hệ thống"
+    >
       <AnimatePresence mode="popLayout">
         {toasts.map((toast) => (
           <ToastItem key={toast.id} toast={toast} onDismiss={dismissToast} />
@@ -25,13 +28,31 @@ interface ToastItemProps {
 }
 
 function ToastItem({ toast, onDismiss }: ToastItemProps) {
+  const shouldReduceMotion = useReducedMotion();
+  const isError = toast.type === "ERROR";
+
   return (
     <motion.div
       layout
-      initial={{ opacity: 0, x: 50, scale: 0.9 }}
+      role={isError ? "alert" : "status"}
+      aria-live={isError ? "assertive" : "polite"}
+      aria-atomic="true"
+      initial={{
+        opacity: 0,
+        x: shouldReduceMotion ? 0 : 50,
+        scale: shouldReduceMotion ? 1 : 0.9,
+      }}
       animate={{ opacity: 1, x: 0, scale: 1 }}
-      exit={{ opacity: 0, x: 50, scale: 0.95 }}
-      transition={{ type: "spring", stiffness: 300, damping: 25 }}
+      exit={{
+        opacity: 0,
+        x: shouldReduceMotion ? 0 : 50,
+        scale: shouldReduceMotion ? 1 : 0.95,
+      }}
+      transition={
+        shouldReduceMotion
+          ? { duration: 0 }
+          : { type: "spring", stiffness: 300, damping: 25 }
+      }
       className={`pointer-events-auto w-full p-4 glass-premium border-l-4 flex gap-3 items-start relative overflow-hidden shadow-2xl ${
         toast.type === "SUCCESS" && "border-l-primary-neon shadow-neon-cyan/5"
       } ${
@@ -61,8 +82,10 @@ function ToastItem({ toast, onDismiss }: ToastItemProps) {
 
       {/* Nút đóng cưỡng bức */}
       <button
+        type="button"
         onClick={() => onDismiss(toast.id)}
-        className="absolute top-3 right-3 text-text-dark hover:text-text-pure transition-colors cursor-pointer"
+        aria-label={`Đóng thông báo: ${toast.title}`}
+        className="absolute top-2 right-2 min-h-8 min-w-8 text-text-dark hover:text-text-pure transition-colors cursor-pointer flex items-center justify-center focus-visible:bio-focus"
       >
         <X className="w-3.5 h-3.5" />
       </button>

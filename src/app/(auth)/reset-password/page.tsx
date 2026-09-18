@@ -3,7 +3,9 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AuthInput } from "@/features/auth/AuthInput";
+import { AuthMessage } from "@/features/auth/AuthMessage";
 import { AuthPanel } from "@/features/auth/AuthPanel";
+import { AuthSubmitButton } from "@/features/auth/AuthSubmitButton";
 import { resetPasswordSchema } from "@/features/auth/authSchemas";
 import { supabase } from "@/lib/supabaseClient";
 
@@ -49,15 +51,13 @@ export default function ResetPasswordPage() {
   return (
     <AuthPanel eyebrow="Thiết lập khóa mới" title="Đặt lại mật khẩu">
       {!ready ? (
-        <p className="text-center text-text-dark">Đang xác minh phiên khôi phục...</p>
+        <AuthMessage tone="info">Đang xác minh phiên khôi phục...</AuthMessage>
       ) : (
-        <form onSubmit={submit} className="flex flex-col gap-4 font-mono text-xs">
-          <AuthInput label="Mật khẩu mới" type="password" value={password} onChange={setPassword} autoComplete="new-password" />
-          <AuthInput label="Xác nhận mật khẩu" type="password" value={confirmPassword} onChange={setConfirmPassword} autoComplete="new-password" />
-          {message && <p className="border border-red-500/30 p-3 text-red-400">{message}</p>}
-          <button disabled={pending} className="h-11 bg-primary-neon text-background-deep font-bold uppercase disabled:opacity-50">
-            {pending ? "Đang cập nhật..." : "Cập nhật mật khẩu"}
-          </button>
+        <form onSubmit={submit} aria-busy={pending} className="flex min-w-0 flex-col gap-4 font-mono text-xs">
+          <AuthInput label="Mật khẩu mới" type="password" value={password} onChange={setPassword} autoComplete="new-password" disabled={pending} />
+          <AuthInput label="Xác nhận mật khẩu" type="password" value={confirmPassword} onChange={setConfirmPassword} autoComplete="new-password" disabled={pending} />
+          {message && <AuthMessage tone="error">{message}</AuthMessage>}
+          <AuthSubmitButton pending={pending} pendingLabel="Đang cập nhật...">Cập nhật mật khẩu</AuthSubmitButton>
         </form>
       )}
     </AuthPanel>

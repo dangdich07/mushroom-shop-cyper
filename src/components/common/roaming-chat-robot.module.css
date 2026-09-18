@@ -1,0 +1,327 @@
+.robotButton {
+  position: fixed;
+  right: 1rem;
+  bottom: 1rem;
+  z-index: 60;
+  width: 56px;
+  height: 56px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-primary-neon);
+  cursor: pointer;
+  will-change: transform;
+  touch-action: manipulation;
+}
+
+.robotButton:focus-visible {
+  outline: 2px solid var(--color-primary-neon);
+  outline-offset: 4px;
+  border-radius: 18px;
+}
+
+.direction,
+.robotVisual {
+  position: absolute;
+  display: block;
+}
+
+.direction {
+  left: 50%;
+  top: 50%;
+  width: 96px;
+  height: 96px;
+  transform: translate(-50%, -50%) scale(0.46);
+  transition: transform 520ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.robotVisual {
+  inset: 0;
+}
+
+.robotButton[data-facing="left"] .direction {
+  transform: translate(-50%, -50%) scale(0.46) scaleX(-1);
+}
+
+.robotVisual {
+  animation: robotHover 1.45s ease-in-out infinite;
+  filter: drop-shadow(0 0 9px rgba(0, 245, 255, 0.68));
+}
+
+.aura {
+  position: absolute;
+  left: 13px;
+  top: 10px;
+  width: 70px;
+  height: 70px;
+  border: 1px solid rgba(0, 245, 255, 0.3);
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(0, 245, 255, 0.15), transparent 67%);
+  animation: auraPulse 2s ease-out infinite;
+}
+
+.antenna {
+  position: absolute;
+  left: 47px;
+  top: 4px;
+  z-index: 3;
+  width: 2px;
+  height: 14px;
+  background: var(--color-primary-cyan);
+  transform: rotate(12deg);
+  transform-origin: bottom;
+  animation: antennaWave 1.8s ease-in-out infinite;
+}
+
+.antennaLight {
+  position: absolute;
+  left: -4px;
+  top: -6px;
+  width: 10px;
+  height: 10px;
+  border: 2px solid var(--color-background-deep);
+  border-radius: 50%;
+  background: #ff2aa1;
+  box-shadow: 0 0 11px #ff2aa1;
+  animation: signalBlink 1s steps(2, end) infinite;
+}
+
+.head {
+  position: absolute;
+  left: 20px;
+  top: 18px;
+  z-index: 4;
+  width: 56px;
+  height: 38px;
+  border: 2px solid var(--color-primary-neon);
+  border-radius: 13px 13px 10px 10px;
+  background: linear-gradient(145deg, #10243a, #050a16 64%);
+  box-shadow: inset 0 0 14px rgba(0, 245, 255, 0.16), 0 0 12px rgba(0, 245, 255, 0.25);
+}
+
+.head::after {
+  content: "";
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  top: 6px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.7), transparent);
+}
+
+.ear {
+  position: absolute;
+  top: 11px;
+  width: 7px;
+  height: 17px;
+  border: 1px solid var(--color-primary-neon);
+  background: #07101f;
+}
+
+.earLeft { left: -8px; }
+.earRight { right: -8px; }
+
+.eye {
+  position: absolute;
+  top: 13px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-primary-neon);
+  box-shadow: 0 0 9px var(--color-primary-cyan);
+  animation: eyeBlink 3.4s infinite;
+}
+
+.eyeLeft { left: 13px; }
+.eyeRight { right: 13px; }
+
+.mouth {
+  position: absolute;
+  left: 20px;
+  bottom: 7px;
+  width: 16px;
+  height: 3px;
+  border-bottom: 2px solid #ff2aa1;
+  border-radius: 50%;
+  box-shadow: 0 2px 5px rgba(255, 42, 161, 0.6);
+}
+
+.body {
+  position: absolute;
+  left: 27px;
+  top: 56px;
+  z-index: 3;
+  width: 42px;
+  height: 25px;
+  border: 2px solid var(--color-primary-neon);
+  border-radius: 7px 7px 12px 12px;
+  background: linear-gradient(145deg, #0b2940, #050a16);
+  box-shadow: inset 0 0 11px rgba(0, 245, 255, 0.16);
+}
+
+.core {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  font-family: var(--font-mono), monospace;
+  font-size: 8px;
+  font-weight: 900;
+  color: var(--color-background-deep);
+  background: var(--color-primary-neon);
+  padding: 1px 3px;
+  box-shadow: 0 0 8px rgba(0, 245, 255, 0.65);
+}
+
+.arm {
+  position: absolute;
+  top: 3px;
+  width: 8px;
+  height: 22px;
+  border: 2px solid var(--color-primary-cyan);
+  border-radius: 6px;
+  background: #06101f;
+  transform-origin: top;
+}
+
+.armLeft {
+  left: -10px;
+  animation: armSwingLeft 1s ease-in-out infinite alternate;
+}
+
+.armRight {
+  right: -10px;
+  animation: armSwingRight 1s ease-in-out infinite alternate;
+}
+
+.foot {
+  position: absolute;
+  top: 80px;
+  z-index: 2;
+  width: 15px;
+  height: 7px;
+  border: 1px solid var(--color-primary-neon);
+  border-radius: 3px 3px 7px 7px;
+  background: #081525;
+}
+
+.footLeft {
+  left: 29px;
+  animation: footStep 0.72s ease-in-out infinite alternate;
+}
+
+.footRight {
+  right: 29px;
+  animation: footStep 0.72s -0.36s ease-in-out infinite alternate;
+}
+
+.thruster {
+  position: absolute;
+  left: 44px;
+  top: 80px;
+  width: 8px;
+  height: 15px;
+  clip-path: polygon(50% 100%, 0 0, 100% 0);
+  background: linear-gradient(to bottom, white, var(--color-primary-neon), transparent);
+  filter: drop-shadow(0 0 5px var(--color-primary-cyan));
+  animation: thrusterPulse 0.28s ease-in-out infinite alternate;
+}
+
+.tooltip {
+  position: absolute;
+  left: 50%;
+  top: -5px;
+  min-width: max-content;
+  transform: translate(-50%, -100%) scale(0.9);
+  border: 1px solid rgba(0, 245, 255, 0.42);
+  background: rgba(3, 7, 18, 0.94);
+  padding: 6px 9px;
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-primary-neon);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 180ms ease, transform 180ms ease;
+  box-shadow: 0 0 16px rgba(0, 245, 255, 0.14);
+}
+
+.robotButton:hover .tooltip,
+.robotButton:focus-visible .tooltip {
+  transform: translate(-50%, -100%) scale(1);
+  opacity: 1;
+}
+
+.robotButton:hover .robotVisual,
+.robotButton:focus-visible .robotVisual,
+.robotButton[data-moving="false"] .robotVisual {
+  filter: drop-shadow(0 0 13px rgba(0, 245, 255, 0.9));
+}
+
+@keyframes robotHover {
+  0%, 100% { transform: translateY(-2px) rotate(-1deg); }
+  50% { transform: translateY(3px) rotate(1deg); }
+}
+
+@keyframes auraPulse {
+  0% { transform: scale(0.72); opacity: 0; }
+  40% { opacity: 0.65; }
+  100% { transform: scale(1.18); opacity: 0; }
+}
+
+@keyframes antennaWave {
+  0%, 100% { transform: rotate(5deg); }
+  50% { transform: rotate(18deg); }
+}
+
+@keyframes signalBlink {
+  50% { opacity: 0.35; }
+}
+
+@keyframes eyeBlink {
+  0%, 46%, 52%, 100% { transform: scaleY(1); }
+  49% { transform: scaleY(0.12); }
+}
+
+@keyframes armSwingLeft {
+  from { transform: rotate(13deg); }
+  to { transform: rotate(-18deg); }
+}
+
+@keyframes armSwingRight {
+  from { transform: rotate(-13deg); }
+  to { transform: rotate(18deg); }
+}
+
+@keyframes footStep {
+  from { transform: translateY(0); }
+  to { transform: translateY(3px); }
+}
+
+@keyframes thrusterPulse {
+  from { transform: scaleY(0.55); opacity: 0.48; }
+  to { transform: scaleY(1.1); opacity: 1; }
+}
+
+@media (min-width: 640px) {
+  .robotButton {
+    right: 1.5rem;
+    bottom: 1.5rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .robotVisual,
+  .aura,
+  .antenna,
+  .antennaLight,
+  .eye,
+  .arm,
+  .foot,
+  .thruster,
+  .tooltip {
+    animation: none !important;
+    transition: none !important;
+  }
+}
