@@ -68,9 +68,9 @@ export function Drawer({ isOpen, onClose, title, children }: DrawerProps) {
             style={{
               width: "min(28rem, 100vw)",
               maxWidth: "100vw",
-              backgroundColor: "#0B1120",
+              backgroundColor: "var(--color-surface-raised)",
             }}
-            className="fixed inset-y-0 right-0 z-10 flex h-[100dvh] min-h-0 flex-col gap-4 overflow-hidden border-l border-white/10 p-6 shadow-2xl focus:outline-none"
+            className="fixed inset-y-0 right-0 z-10 flex h-[100dvh] min-h-0 flex-col gap-4 overflow-hidden border-l border-[var(--color-border-default)] p-6 shadow-2xl focus:outline-none"
           >
             {/* Header Drawer */}
             <div className="flex justify-between items-center border-b border-white/5 pb-4">

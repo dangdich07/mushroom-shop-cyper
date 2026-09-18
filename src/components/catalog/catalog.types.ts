@@ -22,6 +22,7 @@ export interface CatalogFilterPanelProps
   extends CatalogFilterValues,
     CatalogFilterActions {
   idPrefix: string;
+  showSort?: boolean;
 }
 
 export interface CatalogProductCardProps {

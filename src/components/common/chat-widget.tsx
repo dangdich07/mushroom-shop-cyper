@@ -35,7 +35,8 @@ export function ChatWidget() {
   }, [isOpen]);
 
   useEffect(() => {
-    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
+    const behavior = window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth";
+    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior });
   }, [messages, pending]);
 
   if (pathname === "/admin" || pathname.startsWith("/admin/")) return null;

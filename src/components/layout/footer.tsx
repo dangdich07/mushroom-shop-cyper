@@ -5,7 +5,6 @@ import Link from "next/link";
 import { Send } from "lucide-react";
 import { BrandMark } from "./brand-mark";
 import { Container } from "./container";
-import { TrustStrip } from "./trust-strip";
 import { subscribeNewsletter } from "@/features/newsletter/actions";
 
 const INITIAL_NEWSLETTER_STATE = { message: "", status: "IDLE" as const };
@@ -73,8 +72,6 @@ export function Footer() {
         aria-hidden="true"
         className="pointer-events-none absolute left-1/4 top-0 h-32 w-80 bg-primary-neon/[0.025] blur-[90px]"
       />
-
-      <TrustStrip />
 
       <Container className="grid grid-cols-1 gap-10 border-b border-white/[0.07] py-12 md:grid-cols-2 lg:grid-cols-5">
         <div className="flex flex-col items-start gap-4 lg:col-span-2">

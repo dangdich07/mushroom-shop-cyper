@@ -9,7 +9,7 @@ interface RoamingChatRobotProps {
 
 const ROBOT_SIZE = 56;
 const EDGE_GAP = 14;
-const TOP_SAFE_GAP = 88;
+const TOP_SAFE_GAP = 104;
 
 export function RoamingChatRobot({ onOpen }: RoamingChatRobotProps) {
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -21,6 +21,7 @@ export function RoamingChatRobot({ onOpen }: RoamingChatRobotProps) {
     const robotButton: HTMLButtonElement = button;
 
     const desktopInset = window.matchMedia("(min-width: 640px)");
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
     let frameId = 0;
     let previousTime = 0;
     let turnAt = 0;
@@ -78,11 +79,11 @@ export function RoamingChatRobot({ onOpen }: RoamingChatRobotProps) {
     function animate(time: number) {
       if (!initialized) initializePosition();
 
-      robotButton.dataset.moving = pausedRef.current ? "false" : "true";
+      robotButton.dataset.moving = pausedRef.current || reducedMotion.matches ? "false" : "true";
       const delta = previousTime ? Math.min((time - previousTime) / 1000, 0.04) : 0;
       previousTime = time;
 
-      if (!pausedRef.current && document.visibilityState === "visible") {
+      if (!pausedRef.current && !reducedMotion.matches && document.visibilityState === "visible") {
         if (time >= turnAt) {
           const currentAngle = Math.atan2(targetVelocityY, targetVelocityX);
           const nextAngle = currentAngle + (Math.random() - 0.5) * 0.85;
@@ -126,10 +127,12 @@ export function RoamingChatRobot({ onOpen }: RoamingChatRobotProps) {
     initializePosition();
     frameId = window.requestAnimationFrame(animate);
     window.addEventListener("resize", clampToViewport);
+    reducedMotion.addEventListener("change", initializePosition);
 
     return () => {
       window.cancelAnimationFrame(frameId);
       window.removeEventListener("resize", clampToViewport);
+      reducedMotion.removeEventListener("change", initializePosition);
     };
   }, []);
 

@@ -7,7 +7,11 @@ export function HomeHero({ children, className }: HomeSectionProps) {
     <section className={cn(HOME_SECTION_STYLES.hero, className)}>
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_72%_28%,rgba(0,245,255,0.1),transparent_42%),radial-gradient(circle_at_18%_72%,rgba(139,92,246,0.07),transparent_36%)]"
+        className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_72%_28%,var(--home-glow-cyan),transparent_42%),radial-gradient(circle_at_18%_72%,var(--home-glow-violet),transparent_36%)]"
+      />
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 opacity-40 [background-image:linear-gradient(rgba(0,245,255,0.045)_1px,transparent_1px),linear-gradient(90deg,rgba(0,245,255,0.045)_1px,transparent_1px)] [background-size:56px_56px]"
       />
       <div
         aria-hidden="true"
