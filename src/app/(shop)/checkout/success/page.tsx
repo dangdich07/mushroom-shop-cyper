@@ -22,8 +22,10 @@ export default async function CheckoutSuccessPage({ searchParams }: SuccessPageP
   if (!order) redirect("/account/orders");
 
   return (
-    <div className="min-h-[70vh] min-w-0 overflow-x-clip py-12 font-mono text-xs sm:py-20">
-      <Container>
+    <div className="relative isolate min-w-0 overflow-x-clip bg-background-deep py-4 text-sm sm:py-6">
+      <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10 bg-[url('/images/catalog-lingzhi-lab.webp')] bg-cover bg-right-top opacity-[0.12]" />
+      <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10 bg-[linear-gradient(rgba(0,210,230,0.035)_1px,transparent_1px),linear-gradient(90deg,rgba(0,210,230,0.035)_1px,transparent_1px)] bg-[size:40px_40px]" />
+      <Container wide>
         <OrderSuccessPanel orderId={order.id} status={order.status} />
       </Container>
     </div>

@@ -22,6 +22,10 @@ function verifyWebhookSignature(rawBody: string, incomingSignature: string, secr
 }
 
 export async function POST(request: Request) {
+  const contentLength = Number(request.headers.get("content-length") ?? 0);
+  if (contentLength > 32 * 1024) {
+    return NextResponse.json({ error: "Webhook vượt quá dung lượng cho phép." }, { status: 413 });
+  }
   const rawBody = await request.text();
   const signature = request.headers.get("x-api-signature");
   const secret = process.env.PAYMENT_GATEWAY_SECRET;

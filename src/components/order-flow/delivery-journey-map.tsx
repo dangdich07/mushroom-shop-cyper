@@ -39,18 +39,18 @@ export function DeliveryJourneyMap({ orderId, status }: DeliveryJourneyMapProps)
   return (
     <figure
       aria-labelledby="delivery-map-title"
-      className="relative isolate min-w-0 overflow-hidden border border-primary-cyan/20 bg-background-card/30 p-4 sm:p-6"
+      className="relative isolate min-w-0 overflow-hidden rounded-xl border border-primary-cyan/30 bg-surface-glass p-3 shadow-[0_0_30px_rgba(0,210,230,0.05)] backdrop-blur-xl sm:p-4"
     >
       <div aria-hidden="true" className="pointer-events-none absolute inset-0 opacity-60 [background-image:radial-gradient(circle_at_50%_45%,rgba(0,245,255,0.12),transparent_52%)]" />
 
-      <figcaption className="relative z-10 flex min-w-0 flex-col gap-2 border-b border-white/5 pb-4 sm:flex-row sm:items-end sm:justify-between">
+      <figcaption className="relative z-10 flex min-w-0 flex-col gap-2 border-b border-primary-cyan/15 pb-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
-          <p className="text-[9px] font-bold uppercase tracking-[0.22em] text-primary-cyan">Bản đồ hành trình</p>
-          <h2 id="delivery-map-title" className="mt-1 break-words font-heading text-sm font-black uppercase tracking-wide text-text-pure sm:text-base">
+          <p className="font-mono text-[10px] tracking-wider text-primary-cyan">Bản đồ hành trình</p>
+          <h2 id="delivery-map-title" className="mt-1 break-words font-heading text-lg font-semibold text-text-pure">
             Tuyến đường Hà Nội – Thái Nguyên
           </h2>
         </div>
-        <span className="w-fit border border-white/10 px-2.5 py-1 text-[9px] font-bold uppercase text-text-dark">
+        <span className="w-fit rounded-lg border border-primary-cyan/20 bg-primary-cyan/5 px-3 py-2 text-xs font-medium text-text-muted">
           {usesBike ? "Phương tiện: Xe máy" : "Phương tiện: Xe tải"}
         </span>
       </figcaption>
@@ -67,7 +67,7 @@ export function DeliveryJourneyMap({ orderId, status }: DeliveryJourneyMapProps)
           aria-valuemax={100}
           aria-valuenow={progress}
           aria-valuetext={cancelled ? "Hành trình đã hủy" : stages[currentStage].label}
-          className="h-1 overflow-hidden bg-white/10"
+          className="h-1 overflow-hidden rounded-full bg-primary-cyan/15"
         >
           <div className={`h-full transition-[width] duration-700 motion-reduce:transition-none ${cancelled ? "bg-red-400" : "bg-gradient-to-r from-primary-cyan to-primary-neon"}`} style={{ width: `${progress}%` }} />
         </div>
@@ -75,14 +75,14 @@ export function DeliveryJourneyMap({ orderId, status }: DeliveryJourneyMapProps)
           {stages.map((stage, index) => {
             const complete = !cancelled && index <= currentStage;
             return (
-              <li key={stage.key} className={`flex min-w-0 items-center gap-1.5 text-[8px] font-bold uppercase tracking-wider ${complete ? "text-text-pure" : "text-text-dark"}`}>
+              <li key={stage.key} aria-current={!cancelled && index === currentStage ? "step" : undefined} className={`flex min-w-0 items-center gap-2 text-xs font-semibold ${!cancelled && index === currentStage ? "text-primary-cyan" : complete ? "text-text-pure" : "text-text-dark"}`}>
                 {complete ? <CheckCircle2 className="h-3 w-3 shrink-0 text-primary-neon" /> : <span aria-hidden="true" className="h-2 w-2 shrink-0 rounded-full border border-current" />}
                 <span className="break-words">{stage.label}</span>
               </li>
             );
           })}
         </ol>
-        <p className={`mt-4 flex items-start gap-2 border-l-2 pl-3 text-[10px] leading-relaxed ${cancelled ? "border-red-400 text-red-300" : "border-primary-cyan text-text-muted"}`}>
+        <p className={`mt-4 flex items-start gap-2 rounded-r-md border-l-2 bg-primary-cyan/[0.04] p-3 text-xs leading-5 ${cancelled ? "border-red-400 text-red-400" : "border-primary-cyan text-text-muted"}`}>
           {cancelled ? <XCircle aria-hidden="true" className="mt-0.5 h-3.5 w-3.5 shrink-0" /> : <PackageCheck aria-hidden="true" className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary-cyan" />}
           <span>
             <strong className="inline-flex items-center gap-1 text-text-pure"><Navigation aria-hidden="true" className="h-3 w-3" /> Bản đồ đường bộ thực:</strong>{" "}

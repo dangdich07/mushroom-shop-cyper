@@ -321,29 +321,57 @@ export default function PromotionsPage() {
 
   return (
     <PageWrapper>
-      <main className="relative min-h-screen overflow-hidden py-8 sm:py-12">
+      <style jsx global>{`
+        .promotions-bio { background: radial-gradient(ellipse at 85% 0%, rgb(0 210 230 / .1), transparent 45%), radial-gradient(ellipse at 10% 45%, rgb(139 92 246 / .06), transparent 45%); }
+        .promotions-bio h2, .promotions-bio h3 { text-transform: none; letter-spacing: normal; }
+        .promotions-bio button { border-radius: 7px; min-height: 44px; text-transform: none; letter-spacing: normal; }
+        .promotions-bio input { border-radius: 7px; border-color: rgb(0 195 220 / .25); }
+        .promotions-bio .promotion-stats > div { min-width: 0; border: 1px solid rgb(0 195 220 / .25); border-radius: 9px; padding: 12px 16px; background: var(--color-surface-glass); backdrop-filter: blur(12px); }
+        .promotions-bio .promotion-stats > div:nth-child(2) { border-color: rgb(139 92 246 / .3); }
+        .promotions-bio .promotion-stats > div p:first-child { font-family: inherit; font-size: 12px; text-transform: none; letter-spacing: normal; }
+        .promotions-bio .promotion-stats > div p:last-child { overflow-wrap: anywhere; font-size: 24px; line-height: 1.3; }
+        .promotions-bio .voucher-card { display: flex; min-width: 0; flex-direction: column; border-radius: 10px; padding: 14px; background: radial-gradient(ellipse at top right, rgb(139 92 246 / .09), transparent 65%), var(--color-surface-glass); }
+        .promotions-bio .voucher-card > div:first-child { pointer-events: none; }
+        .promotions-bio .voucher-card > div:nth-child(2) { gap: 8px; }
+        .promotions-bio .voucher-card > div:nth-child(2) > div:first-child { min-width: 0; flex: 1; }
+        .promotions-bio .voucher-card p { overflow-wrap: anywhere; }
+        .promotions-bio .voucher-card > div:nth-child(2) p:first-of-type { margin-top: 12px; font-size: 28px; color: var(--color-secondary-purple); }
+        .promotions-bio .voucher-card > div:nth-child(2) p:last-of-type { font-size: 12px; line-height: 18px; }
+        .promotions-bio .voucher-card > div:nth-child(3) { margin-top: 12px; padding-top: 10px; }
+        .promotions-bio .voucher-card > div:nth-child(3) > div:first-child { flex-wrap: wrap; font-family: inherit; font-size: 11px; text-transform: none; letter-spacing: normal; }
+        .promotions-bio .voucher-card > div:last-child { margin-top: auto; padding-top: 12px; }
+        .promotions-bio .voucher-card[data-applied=true] { background: radial-gradient(ellipse at top left, rgb(0 210 230 / .13), transparent 75%), var(--color-surface-glass); }
+        .promotions-bio .loyalty-dashboard { border-radius: 12px; overflow: hidden; border-color: rgb(0 195 220 / .25); background: var(--color-surface-glass); }
+        .promotions-bio .loyalty-dashboard button { overflow-wrap: anywhere; max-width: 100%; }
+        .promotions-bio .loyalty-dashboard li > div { min-width: 0; overflow-wrap: anywhere; }
+        .promotions-bio .loyalty-dashboard .font-mono { letter-spacing: normal; text-transform: none; }
+        @media (prefers-reduced-motion: reduce) { .promotions-bio *, .promotions-bio *::before { animation: none !important; transition: none !important; } }
+      `}</style>
+      <div className="promotions-bio relative min-h-screen min-w-0 overflow-x-clip bg-background-deep py-4">
         <div className="pointer-events-none absolute left-1/2 top-0 h-72 w-[70vw] -translate-x-1/2 rounded-full bg-primary-neon/[0.04] blur-[120px]" />
-        <Container className="relative">
-          <header className="border-b border-white/[0.06] pb-8">
-            <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-              <div className="max-w-3xl">
+        <Container wide className="relative">
+          <header>
+            <div className="flex min-w-0 flex-col gap-4">
+              <div className="relative overflow-hidden rounded-xl border border-primary-cyan/20 bg-surface-glass px-5 py-5">
+                <div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-[url('/images/catalog-lingzhi-lab.webp')] bg-cover bg-right opacity-[0.12]" />
+                <div className="relative">
                 <span className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.28em] text-primary-neon">
                   <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
                   Trung tâm phân phối ưu đãi
                 </span>
-                <h1 className="mt-3 font-heading text-3xl font-black uppercase tracking-tight text-text-pure sm:text-5xl">
-                  Đặc quyền cho mỗi
-                  <span className="block text-primary-neon">hành trình sinh khối</span>
+                <h1 className="mt-2 font-heading text-[clamp(26px,3vw,36px)] font-bold leading-tight tracking-tight text-text-pure">
+                  Trung tâm ưu đãi
                 </h1>
-                <p className="mt-4 max-w-2xl text-sm leading-6 text-text-dark sm:text-base">
+                <p className="mt-2 max-w-2xl text-sm leading-6 text-text-muted">
                   Khám phá voucher đang hoạt động, kiểm tra điều kiện theo giỏ
                   hàng và áp dụng chỉ trong một chạm.
                 </p>
+                </div>
               </div>
 
-              <div className="grid grid-cols-3 border border-white/[0.07] bg-background-card/40">
+              <div className="promotion-stats grid min-w-0 grid-cols-2 gap-3 lg:grid-cols-4">
                 <Metric
-                  label="Đang mở"
+                  label="Tổng voucher"
                   value={isLoading ? "—" : String(vouchers.length)}
                 />
                 <Metric
@@ -352,9 +380,10 @@ export default function PromotionsPage() {
                   accent={expiringSoonCount > 0}
                 />
                 <Metric
-                  label="Giỏ hàng"
-                  value={items.length > 0 ? String(items.length) : "0"}
+                  label="Giá trị giỏ hàng"
+                  value={formatVND(subtotal)}
                 />
+                <Metric label="Điểm Loyalty hiện tại" value={isSessionLoading || isLoyaltyLoading ? "—" : !currentUserId ? "Đăng nhập" : isLoyaltyError ? "Chưa tải được" : String(loyaltySummary?.points ?? 0)} />
               </div>
             </div>
           </header>
@@ -362,7 +391,7 @@ export default function PromotionsPage() {
           {appliedVoucher && (
             <section
               aria-label="Voucher đang được chọn"
-              className="mt-6 flex flex-col gap-4 border border-primary-neon/25 bg-primary-neon/[0.06] p-4 sm:flex-row sm:items-center sm:justify-between"
+              className="mt-4 flex min-w-0 flex-col gap-3 rounded-xl border border-primary-neon/40 bg-primary-neon/[0.08] p-4 shadow-[0_0_24px_rgba(0,210,230,0.08)] sm:flex-row sm:items-center sm:justify-between"
             >
               <div className="flex items-start gap-3">
                 <div className="mt-0.5 border border-primary-neon/20 bg-primary-neon/10 p-2 text-primary-neon">
@@ -401,22 +430,22 @@ export default function PromotionsPage() {
             </section>
           )}
 
-          <div className="mt-8 grid grid-cols-1 items-start gap-8 xl:grid-cols-12">
+          <div className="mt-4 grid min-w-0 grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(0,1.85fr)_minmax(0,1fr)]">
             <section
               aria-labelledby="voucher-list-title"
-              className="xl:col-span-8"
+              className="min-w-0 rounded-xl border border-primary-cyan/25 bg-surface-glass p-3 backdrop-blur-xl sm:p-4"
             >
               <div className="flex flex-col gap-4 border-b border-white/[0.06] pb-5">
                 <div className="flex items-center justify-between gap-4">
                   <div>
                     <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-primary-neon">
-                      Voucher matrix
+                      Ưu đãi dành cho bạn
                     </p>
                     <h2
                       id="voucher-list-title"
                       className="mt-1 font-heading text-xl font-black uppercase text-text-pure"
                     >
-                      Kho mã khả dụng
+                      Kho voucher
                     </h2>
                   </div>
                   <span className="font-mono text-[10px] uppercase text-text-dark">
@@ -439,7 +468,7 @@ export default function PromotionsPage() {
                     />
                   </label>
                   <div
-                    className="flex gap-1 overflow-x-auto"
+                    className="flex min-w-0 flex-wrap gap-1"
                     aria-label="Lọc voucher"
                   >
                     {FILTERS.map((item) => (
@@ -461,7 +490,7 @@ export default function PromotionsPage() {
                 </div>
               </div>
 
-              <div className="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-2">
+              <div className="mt-4 grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 2xl:grid-cols-3">
                 {isLoading &&
                   Array.from({ length: 4 }).map((_, index) => (
                     <VoucherSkeleton key={index} />
@@ -528,7 +557,7 @@ export default function PromotionsPage() {
               </div>
             </section>
 
-            <aside className="flex flex-col gap-5 xl:sticky xl:top-24 xl:col-span-4">
+            <aside className="flex min-w-0 flex-col gap-4">
               <LuckyWheel
                 offers={wheelOffers}
                 pointsBalance={loyaltySummary?.points ?? 0}
@@ -543,14 +572,14 @@ export default function PromotionsPage() {
                 onSelectOffer={handleUseVoucher}
               />
 
-              <section className="border border-white/[0.07] bg-background-card/35 p-5">
+              <section className="rounded-xl border border-primary-cyan/20 bg-surface-glass p-4">
                 <div className="flex items-center gap-2">
                   <ShieldCheck
                     className="h-4 w-4 text-secondary-purple"
                     aria-hidden="true"
                   />
                   <h2 className="font-heading text-sm font-black uppercase text-text-pure">
-                    Quy trình kích hoạt
+                    Hướng dẫn sử dụng ưu đãi
                   </h2>
                 </div>
                 <ol className="mt-5 space-y-4">
@@ -567,7 +596,7 @@ export default function PromotionsPage() {
                   <ProtocolStep
                     number="03"
                     title="Xác nhận checkout"
-                    description="Database tính lại ưu đãi an toàn."
+                    description="Ưu đãi được xác nhận khi đặt hàng."
                     isLast
                   />
                 </ol>
@@ -587,7 +616,7 @@ export default function PromotionsPage() {
             }
           />
         </Container>
-      </main>
+      </div>
     </PageWrapper>
   );
 }
@@ -612,7 +641,7 @@ function LoyaltyDashboard({
   return (
     <section
       aria-labelledby="loyalty-dashboard-title"
-      className="mt-10 border border-white/[0.07] bg-background-card/35"
+      className="loyalty-dashboard mt-4 min-w-0 border border-white/[0.07] bg-background-card/35"
     >
       <div className="flex flex-col gap-4 border-b border-white/[0.07] p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
         <div>
@@ -624,12 +653,11 @@ function LoyaltyDashboard({
             id="loyalty-dashboard-title"
             className="mt-2 font-heading text-xl font-black uppercase text-text-pure"
           >
-            Ví điểm thành viên
+            Ví điểm Loyalty
           </h2>
         </div>
         <p className="max-w-md text-xs leading-5 text-text-dark">
-          Nhận 1 điểm cho mỗi 10.000 ₫ của đơn đã giao. Database chỉ cộng một
-          lần và lưu mọi biến động vào sổ giao dịch.
+          Theo dõi điểm khả dụng, tổng điểm tích lũy và các giao dịch trong tài khoản của bạn.
         </p>
       </div>
 
@@ -665,7 +693,7 @@ function LoyaltyDashboard({
             Ví điểm chưa được kích hoạt
           </p>
           <p className="mt-2 text-sm text-text-dark">
-            Migration Loyalty cần được chạy trên Supabase test project trước.
+            Chưa thể tải dữ liệu điểm thưởng. Vui lòng thử lại sau.
           </p>
         </div>
       ) : (
@@ -861,10 +889,11 @@ function VoucherCard({
 
   return (
     <article
-      className={`group relative overflow-hidden border bg-background-card/45 p-5 transition-all duration-300 hover:-translate-y-0.5 ${
+      data-applied={isApplied}
+      className={`voucher-card group relative overflow-hidden border bg-background-card/45 p-5 transition-[border-color,box-shadow,transform] duration-300 motion-safe:hover:-translate-y-0.5 ${
         isApplied
           ? "border-primary-neon/50 shadow-[0_0_24px_rgba(0,245,255,.08)]"
-          : "border-white/[0.07] hover:border-primary-neon/25"
+          : eligible ? "border-primary-cyan/25 hover:border-primary-cyan/60" : "border-secondary-purple/25 hover:border-secondary-purple/50"
       }`}
     >
       <div className="absolute -right-4 top-1/2 h-8 w-8 -translate-y-1/2 rounded-full border border-white/[0.07] bg-background-deep" />
@@ -906,7 +935,7 @@ function VoucherCard({
             {eligible ? "Đủ điều kiện" : `Thiếu ${formatVND(remaining)}`}
           </span>
         </div>
-        <div className="mt-2 h-1 overflow-hidden bg-white/[0.06]">
+        <div role="progressbar" aria-label={`Tiến độ đạt điều kiện voucher ${voucher.code}`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress} aria-valuetext={eligible ? "Đủ điều kiện" : `Cần thêm ${formatVND(remaining)}`} className="mt-2 h-1.5 overflow-hidden rounded-full bg-primary-cyan/10">
           <div
             className="h-full bg-gradient-to-r from-secondary-purple to-primary-neon transition-[width] duration-500"
             style={{ width: `${progress}%` }}
@@ -950,7 +979,7 @@ function VoucherCard({
 
 function VoucherSkeleton() {
   return (
-    <div className="h-[340px] animate-pulse border border-white/[0.06] bg-white/[0.025] p-5">
+    <div className="h-[310px] animate-pulse rounded-xl border border-primary-cyan/15 bg-white/[0.025] p-4 motion-reduce:animate-none">
       <div className="h-6 w-28 bg-white/[0.06]" />
       <div className="mt-5 h-9 w-36 bg-white/[0.06]" />
       <div className="mt-4 h-4 w-full bg-white/[0.04]" />

@@ -78,6 +78,10 @@ function normalizePlainText(content: string) {
 }
 
 export async function POST(request: Request) {
+  const contentLength = Number(request.headers.get("content-length") ?? 0);
+  if (contentLength > 128 * 1024) {
+    return NextResponse.json({ error: "Request vượt quá dung lượng cho phép." }, { status: 413 });
+  }
   if (isRateLimited(request)) {
     return NextResponse.json({ error: "Bạn đang gửi câu hỏi quá nhanh. Vui lòng đợi một phút rồi thử lại." }, { status: 429 });
   }

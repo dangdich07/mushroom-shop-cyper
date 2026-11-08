@@ -16,6 +16,9 @@ type Coordinate = [longitude: number, latitude: number];
 const HANOI_WAREHOUSE: Coordinate = [105.8342, 21.0278];
 const THAI_NGUYEN_DESTINATION: Coordinate = [105.8542, 21.5942];
 const MAP_STYLE_URL = "https://tiles.openfreemap.org/styles/liberty";
+// Serve the matching distribution unchanged: Turbopack cannot resolve the
+// package's automatic import.meta.url worker path reliably.
+const MAP_WORKER_URL = "/vendor/maplibre/6.9.0/maplibre-gl-worker.mjs";
 const ROUTING_URL = `https://router.project-osrm.org/route/v1/driving/${HANOI_WAREHOUSE.join(",")};${THAI_NGUYEN_DESTINATION.join(",")}?overview=full&geometries=geojson&steps=false`;
 
 const progressByStatus: Record<string, number> = {
@@ -76,10 +79,16 @@ function coordinateAtProgress(coordinates: Coordinate[], progress: number): Coor
 }
 
 export function DeliveryRoadMap({ status, usesBike }: DeliveryRoadMapProps) {
+  const [attempt, setAttempt] = useState(0);
+  return <DeliveryRoadMapInstance key={attempt} status={status} usesBike={usesBike} onRetry={() => setAttempt((previous) => previous + 1)} />;
+}
+
+function DeliveryRoadMapInstance({ status, usesBike, onRetry }: DeliveryRoadMapProps & { onRetry: () => void }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const vehicleMarkerRef = useRef<Marker | null>(null);
   const [mapReady, setMapReady] = useState(false);
+  const [mapError, setMapError] = useState<string | null>(null);
   const [routeState, setRouteState] = useState<RouteState>("LOADING");
   const [coordinates, setCoordinates] = useState<Coordinate[]>([
     HANOI_WAREHOUSE,
@@ -104,7 +113,10 @@ export function DeliveryRoadMap({ status, usesBike }: DeliveryRoadMapProps) {
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
 
-    const map = new maplibregl.Map({
+    let map: maplibregl.Map;
+    try {
+      maplibregl.setWorkerUrl(new URL(MAP_WORKER_URL, window.location.origin).href);
+      map = new maplibregl.Map({
       container: containerRef.current,
       style: MAP_STYLE_URL,
       center: [105.844, 21.31],
@@ -112,14 +124,41 @@ export function DeliveryRoadMap({ status, usesBike }: DeliveryRoadMapProps) {
       minZoom: 6,
       maxZoom: 17,
       attributionControl: false,
-    });
+      });
+    } catch (error) {
+      console.error("Không thể khởi tạo bản đồ:", error);
+      setMapError("Không thể khởi tạo bản đồ. Vui lòng kiểm tra hỗ trợ WebGL và tăng tốc đồ họa của trình duyệt.");
+      return;
+    }
+
+    let loaded = false;
+    const timeout = window.setTimeout(() => {
+      if (!loaded) setMapError("Bản đồ tải quá lâu. Vui lòng kiểm tra kết nối và thử lại.");
+    }, 15000);
+    const handleLoad = () => {
+      loaded = true;
+      window.clearTimeout(timeout);
+      setMapError(null);
+      setMapReady(true);
+    };
+    const handleError = (event: maplibregl.ErrorEvent) => {
+      console.error("Lỗi tải bản đồ:", event.error);
+      if (!loaded) setMapError("Không tải được bản đồ nền. Vui lòng kiểm tra kết nối và thử lại.");
+    };
 
     map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "bottom-right");
     map.addControl(new maplibregl.AttributionControl({ compact: true }), "bottom-left");
-    map.on("load", () => setMapReady(true));
+    map.on("load", handleLoad);
+    map.on("error", handleError);
     mapRef.current = map;
+    const resizeObserver = new ResizeObserver(() => map.resize());
+    resizeObserver.observe(containerRef.current);
 
     return () => {
+      window.clearTimeout(timeout);
+      resizeObserver.disconnect();
+      map.off("load", handleLoad);
+      map.off("error", handleError);
       vehicleMarkerRef.current?.remove();
       vehicleMarkerRef.current = null;
       map.remove();
@@ -251,20 +290,27 @@ export function DeliveryRoadMap({ status, usesBike }: DeliveryRoadMapProps) {
   }, [coordinates, mapReady, normalizedStatus, progress, vehicleLabel, vehicleSymbol]);
 
   return (
-    <div className="relative mt-5 min-h-[360px] w-full overflow-hidden border border-primary-cyan/25 bg-background-deep sm:min-h-[440px]">
+    <div className="relative mt-3 h-[320px] min-h-[320px] w-full overflow-hidden rounded-lg border border-primary-cyan/30 bg-background-deep sm:h-[clamp(320px,44vh,440px)]">
       <div
         ref={containerRef}
         aria-label="Bản đồ tuyến đường từ kho Hà Nội đến điểm giao Thái Nguyên"
-        className="absolute inset-0"
+        // MapLibre adds an unlayered position:relative rule which overrides
+        // Tailwind utilities. Keep the host pinned to the entire map frame.
+        style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }}
       />
 
-      {!mapReady && (
-        <div role="status" className="absolute inset-0 z-10 grid place-items-center bg-background-deep/90 px-6 text-center font-mono text-[10px] font-bold uppercase tracking-wider text-primary-cyan">
+      {mapError ? (
+        <div role="alert" className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-4 bg-background-deep/95 px-6 text-center">
+          <p className="max-w-md text-sm leading-6 text-text-muted">{mapError}</p>
+          <button type="button" onClick={onRetry} className="min-h-11 rounded-lg border border-primary-cyan/40 bg-primary-cyan/10 px-5 text-sm font-semibold text-primary-cyan hover:bg-primary-cyan/20 focus-visible:bio-focus">Thử lại bản đồ</button>
+        </div>
+      ) : !mapReady && (
+        <div role="status" className="absolute inset-0 z-10 grid place-items-center bg-background-deep/90 px-6 text-center text-sm font-medium text-primary-cyan">
           Đang tải bản đồ đường bộ...
         </div>
       )}
 
-      <div className="pointer-events-none absolute right-3 top-3 z-10 max-w-[calc(100%-1.5rem)] border border-white/15 bg-background-deep/90 px-3 py-2 text-right font-mono text-[9px] uppercase text-text-muted shadow-lg backdrop-blur-sm">
+      <div className="pointer-events-none absolute right-3 top-3 z-10 max-w-[calc(100%-1.5rem)] rounded-lg border border-primary-cyan/25 bg-background-deep/90 px-3 py-2 text-right text-[11px] text-text-muted shadow-lg backdrop-blur-sm">
         <strong className="block text-primary-cyan">Hà Nội → Thái Nguyên</strong>
         <span>{routeState === "READY" ? "Tuyến đường thực tế" : routeState === "LOADING" ? "Đang tính tuyến đường..." : "Tuyến nối dự phòng"}</span>
       </div>

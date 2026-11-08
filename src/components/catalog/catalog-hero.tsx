@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ChevronRight, Dna, FlaskConical, Sparkles } from "lucide-react";
+import { ChevronRight, Dna, FlaskConical } from "lucide-react";
 import { Container } from "@/components/layout/container";
 
 const CATALOG_HERO_IMAGE = "/images/catalog-lingzhi-lab.webp";
@@ -32,9 +32,9 @@ export function CatalogHero() {
       <div aria-hidden="true" className="absolute inset-0 -z-10 bg-[linear-gradient(rgba(0,245,255,0.045)_1px,transparent_1px),linear-gradient(90deg,rgba(0,245,255,0.045)_1px,transparent_1px)] bg-[size:46px_46px]" />
       <div aria-hidden="true" className="absolute inset-y-0 left-8 w-px bg-primary-neon/40" />
 
-      <Container wide className="relative flex min-h-[12.5rem] items-center py-5 sm:min-h-[13rem] sm:py-6">
-        <div className="max-w-2xl pl-5 sm:pl-10">
-          <nav aria-label="Breadcrumb" className="mb-1 flex items-center gap-2 text-sm text-slate-300">
+      <Container wide className="relative flex min-h-[120px] items-center py-[8px]">
+        <div className="w-full max-w-[820px] pl-2 sm:pl-5 lg:pr-20">
+          <nav aria-label="Breadcrumb" className="flex items-center gap-2 text-[12px] text-slate-300">
             <Link href="/" className="inline-flex min-h-11 items-center transition-colors hover:text-cyan-300 focus-visible:bio-focus">
               Trang chủ
             </Link>
@@ -42,19 +42,15 @@ export function CatalogHero() {
             <span aria-current="page" className="text-cyan-100">Danh mục nấm</span>
           </nav>
 
-          <div className="mb-2 flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.18em] text-cyan-300">
-            <Sparkles className="h-4 w-4" aria-hidden="true" />
-            Hệ sinh thái sản phẩm
-          </div>
-          <h1 className="font-heading text-[clamp(2.4rem,4vw,3.35rem)] font-black leading-none tracking-[-0.05em] text-[#f8fafc]">
+          <h1 className="font-heading text-[28px] font-bold leading-[1.1] tracking-[-0.035em] text-[#f8fafc] sm:text-[30px]">
             Danh mục nấm
           </h1>
-          <p className="mt-3 max-w-xl text-sm leading-6 text-slate-300 sm:text-[15px] sm:leading-6">
+          <p className="mt-[6px] max-w-[740px] text-[12px] leading-[18px] text-slate-300">
             Khám phá các sản phẩm nấm dược liệu, nấm thực phẩm và giải pháp nuôi trồng được cập nhật trực tiếp từ danh mục CyberMushroom.
           </p>
         </div>
 
-        <div className="absolute right-8 top-8 hidden items-start gap-3 border-l border-cyan-300/30 pl-4 font-mono text-[9px] uppercase leading-5 tracking-[0.16em] text-cyan-100/70 lg:flex">
+        <div className="absolute right-8 top-1/2 hidden -translate-y-1/2 items-start gap-3 border-l border-cyan-300/30 pl-4 font-mono text-[9px] uppercase leading-5 tracking-[0.16em] text-cyan-100/70 lg:flex">
           <Dna className="mt-0.5 h-5 w-5 text-cyan-300" aria-hidden="true" />
           Nature<br />Science<br />Health
         </div>

@@ -1,9 +1,9 @@
 "use client";
 
 import type { FormEvent } from "react";
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { ChevronRight, Home } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ProductGallery } from "@/components/product-detail/product-gallery";
 import { ProductReviews } from "@/components/product-detail/product-reviews";
@@ -27,12 +27,33 @@ export function ProductDetailClient({ initialProduct, relatedProducts }: Product
 
   const [activeTab, setActiveTab] = useState<ProductDetailTab>("DESCRIPTION");
   const [quantity, setQuantity] = useState(1);
-  const [selectedVariantId, setSelectedVariantId] = useState(initialProduct.variants[0]?.id ?? "");
-  const [selectedImage, setSelectedImage] = useState<string>(" ");
+  const [selectedVariantId, setSelectedVariantId] = useState(
+    initialProduct.variants.find((variant) => variant.stockQuantity - variant.reservedQuantity > 0)?.id
+      ?? initialProduct.variants[0]?.id
+      ?? "",
+  );
+  const [selectedImage, setSelectedImage] = useState<string>(
+    initialProduct.image || initialProduct.images[0]?.url || "",
+  );
   const [reviewerName, setReviewerName] = useState("");
   const [reviewComment, setReviewComment] = useState("");
   const [reviewRating, setReviewRating] = useState(5);
   const [isUserLoggedIn, setIsUserLoggedIn] = useState(false);
+
+  const galleryImages = useMemo(() => {
+    const candidates = [
+      ...(initialProduct.image ? [{ url: initialProduct.image, alt: initialProduct.name }] : []),
+      ...initialProduct.images,
+    ];
+    const seen = new Set<string>();
+
+    return candidates.filter((image) => {
+      const url = image.url.trim();
+      if (!url || seen.has(url)) return false;
+      seen.add(url);
+      return true;
+    });
+  }, [initialProduct.image, initialProduct.images, initialProduct.name]);
 
   useEffect(() => {
     const fetchIdentitySession = async () => {
@@ -86,12 +107,14 @@ export function ProductDetailClient({ initialProduct, relatedProducts }: Product
   };
 
   useEffect(() => {
-    if (initialProduct.slug.includes("hau-thu")) {
-      setSelectedImage("https://images.unsplash.com/photo-1535254973040-607b474cb50d?q=80&w=600&auto=format&fit=crop");
-    } else {
-      setSelectedImage(initialProduct.image);
-    }
-  }, [initialProduct]);
+    setSelectedImage(initialProduct.image || initialProduct.images[0]?.url || "");
+    setSelectedVariantId(
+      initialProduct.variants.find((variant) => variant.stockQuantity - variant.reservedQuantity > 0)?.id
+        ?? initialProduct.variants[0]?.id
+        ?? "",
+    );
+    setQuantity(1);
+  }, [initialProduct.id, initialProduct.image, initialProduct.images, initialProduct.variants]);
 
   const displayImage = selectedImage || initialProduct.image;
   const selectedVariant = initialProduct.variants.find((variant) => variant.id === selectedVariantId);
@@ -153,16 +176,23 @@ export function ProductDetailClient({ initialProduct, relatedProducts }: Product
   };
 
   return (
-    <div className="w-full min-w-0 overflow-x-clip font-mono text-xs text-text-pure">
-      <Link href="/products" className="group mb-8 inline-flex min-h-11 items-center gap-2 uppercase tracking-widest text-text-dark hover:text-primary-neon focus-visible:bio-focus">
-        <ArrowLeft aria-hidden="true" className="h-4 w-4 motion-safe:group-hover:-translate-x-1" /> Quay lại sàn giao dịch
-      </Link>
+    <div className="w-full min-w-0 overflow-x-clip text-text-pure">
+      <nav aria-label="Điều hướng phân cấp" className="mb-5 flex min-h-11 max-w-full items-center gap-2 overflow-hidden text-sm sm:mb-7">
+        <Link href="/" className="inline-flex shrink-0 items-center gap-2 text-text-dark transition-colors hover:text-primary-neon focus-visible:bio-focus">
+          <Home aria-hidden="true" className="h-4 w-4" />
+          <span className="hidden sm:inline">Trang chủ</span>
+        </Link>
+        <ChevronRight aria-hidden="true" className="h-4 w-4 shrink-0 text-primary-neon/60" />
+        <Link href="/products" className="shrink-0 text-text-dark transition-colors hover:text-primary-neon focus-visible:bio-focus">Danh mục nấm</Link>
+        <ChevronRight aria-hidden="true" className="h-4 w-4 shrink-0 text-primary-neon/60" />
+        <span aria-current="page" className="truncate font-medium text-text-muted">{initialProduct.name}</span>
+      </nav>
 
-      <div className="mb-16 grid min-w-0 grid-cols-1 items-start gap-8 lg:grid-cols-12 lg:gap-12">
-        <div className="min-w-0 lg:col-span-5">
-          <ProductGallery images={initialProduct.images} productName={initialProduct.name} selectedImage={displayImage} onSelectImage={setSelectedImage} />
+      <div className="mb-10 grid min-w-0 grid-cols-1 items-stretch gap-6 lg:mb-12 lg:grid-cols-[minmax(0,1.04fr)_minmax(0,0.96fr)] lg:gap-7 xl:gap-9">
+        <div className="min-w-0">
+          <ProductGallery images={galleryImages} productName={initialProduct.name} selectedImage={displayImage} onSelectImage={setSelectedImage} />
         </div>
-        <div className="min-w-0 lg:col-span-7">
+        <div className="min-w-0">
           <ProductSummary
             product={initialProduct}
             selectedVariantId={selectedVariantId}
@@ -179,7 +209,8 @@ export function ProductDetailClient({ initialProduct, relatedProducts }: Product
 
       <ProductTabs
         activeTab={activeTab}
-        description={initialProduct.shortDescription}
+        product={initialProduct}
+        selectedVariant={selectedVariant}
         onChange={setActiveTab}
         reviewsContent={(
           <ProductReviews

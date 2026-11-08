@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type PointerEvent } from "react";
 import styles from "./roaming-chat-robot.module.css";
 
 interface RoamingChatRobotProps {
@@ -9,151 +9,138 @@ interface RoamingChatRobotProps {
 
 const ROBOT_SIZE = 56;
 const EDGE_GAP = 14;
-const TOP_SAFE_GAP = 104;
+const TOP_SAFE_GAP = 96;
 
 export function RoamingChatRobot({ onOpen }: RoamingChatRobotProps) {
   const buttonRef = useRef<HTMLButtonElement>(null);
-  const pausedRef = useRef(false);
+  const dragRef = useRef<{ pointerId: number; startX: number; startY: number; left: number; top: number } | null>(null);
+  const draggedRef = useRef(false);
+  const hoveredRef = useRef(false);
 
   useEffect(() => {
     const button = buttonRef.current;
     if (!button) return;
-    const robotButton: HTMLButtonElement = button;
-
-    const desktopInset = window.matchMedia("(min-width: 640px)");
-    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
     let frameId = 0;
     let previousTime = 0;
     let turnAt = 0;
-    let initialized = false;
-    let x = 0;
-    let y = 0;
-    let velocityX = -78;
-    let velocityY = -48;
+    let velocityX = -50;
+    let velocityY = -30.5;
     let targetVelocityX = velocityX;
     let targetVelocityY = velocityY;
-    let facing: "left" | "right" = "left";
 
-    function bounds() {
+    const bounds = () => {
+      const width = button.offsetWidth || ROBOT_SIZE;
+      const height = button.offsetHeight || ROBOT_SIZE;
       return {
         minX: EDGE_GAP,
-        minY: Math.min(TOP_SAFE_GAP, Math.max(EDGE_GAP, window.innerHeight - ROBOT_SIZE)),
-        maxX: Math.max(EDGE_GAP, window.innerWidth - ROBOT_SIZE - EDGE_GAP),
-        maxY: Math.max(TOP_SAFE_GAP, window.innerHeight - ROBOT_SIZE - EDGE_GAP),
+        minY: Math.min(TOP_SAFE_GAP, Math.max(EDGE_GAP, window.innerHeight - height - EDGE_GAP)),
+        maxX: Math.max(EDGE_GAP, window.innerWidth - width - EDGE_GAP),
+        maxY: Math.max(TOP_SAFE_GAP, window.innerHeight - height - EDGE_GAP),
       };
-    }
+    };
 
-    function basePosition() {
-      const inset = desktopInset.matches ? 24 : 16;
-      return {
-        x: window.innerWidth - ROBOT_SIZE - inset,
-        y: window.innerHeight - ROBOT_SIZE - inset,
-      };
-    }
-
-    function renderPosition() {
-      const base = basePosition();
-      robotButton.style.transform = `translate3d(${(x - base.x).toFixed(2)}px, ${(y - base.y).toFixed(2)}px, 0)`;
-      if (velocityX < -6) facing = "left";
-      if (velocityX > 6) facing = "right";
-      robotButton.dataset.facing = facing;
-    }
-
-    function initializePosition() {
+    const clampToViewport = () => {
       const area = bounds();
-      const base = basePosition();
-      x = Math.min(area.maxX, Math.max(area.minX, base.x));
-      y = Math.min(area.maxY, Math.max(area.minY, base.y));
-      initialized = true;
-      renderPosition();
-    }
+      const currentLeft = Number.parseFloat(button.style.left);
+      const currentTop = Number.parseFloat(button.style.top);
+      const left = Number.isFinite(currentLeft) ? Math.min(Math.max(area.minX, currentLeft), area.maxX) : area.maxX - 10;
+      const top = Number.isFinite(currentTop) ? Math.min(Math.max(area.minY, currentTop), area.maxY) : area.maxY - 10;
+      button.style.left = `${left}px`;
+      button.style.top = `${top}px`;
+    };
 
-    function clampToViewport() {
-      if (!initialized) return;
-      const area = bounds();
-      x = Math.min(area.maxX, Math.max(area.minX, x));
-      y = Math.min(area.maxY, Math.max(area.minY, y));
-      renderPosition();
-    }
-
-    function animate(time: number) {
-      if (!initialized) initializePosition();
-
-      robotButton.dataset.moving = pausedRef.current || reducedMotion.matches ? "false" : "true";
+    const animate = (time: number) => {
       const delta = previousTime ? Math.min((time - previousTime) / 1000, 0.04) : 0;
       previousTime = time;
+      const isPaused = dragRef.current !== null || hoveredRef.current;
+      button.dataset.moving = !isPaused ? "true" : "false";
 
-      if (!pausedRef.current && !reducedMotion.matches && document.visibilityState === "visible") {
-        if (time >= turnAt) {
-          const currentAngle = Math.atan2(targetVelocityY, targetVelocityX);
-          const nextAngle = currentAngle + (Math.random() - 0.5) * 0.85;
-          const speed = window.innerWidth < 640 ? 46 + Math.random() * 12 : 64 + Math.random() * 18;
-          targetVelocityX = Math.cos(nextAngle) * speed;
-          targetVelocityY = Math.sin(nextAngle) * speed;
-          turnAt = time + 4200 + Math.random() * 2800;
-        }
-
+      if (!isPaused && document.visibilityState === "visible") {
         const area = bounds();
-        const horizontalTurnZone = Math.min(72, (area.maxX - area.minX) * 0.18);
-        const verticalTurnZone = Math.min(72, (area.maxY - area.minY) * 0.18);
-
-        if (x < area.minX + horizontalTurnZone && targetVelocityX < 0) targetVelocityX = Math.abs(targetVelocityX);
-        if (x > area.maxX - horizontalTurnZone && targetVelocityX > 0) targetVelocityX = -Math.abs(targetVelocityX);
-        if (y < area.minY + verticalTurnZone && targetVelocityY < 0) targetVelocityY = Math.abs(targetVelocityY);
-        if (y > area.maxY - verticalTurnZone && targetVelocityY > 0) targetVelocityY = -Math.abs(targetVelocityY);
-
-        const steering = 1 - Math.exp(-2.15 * delta);
+        let x = Number.parseFloat(button.style.left) || area.maxX;
+        let y = Number.parseFloat(button.style.top) || area.maxY;
+        if (time >= turnAt) {
+          const angle = Math.atan2(targetVelocityY, targetVelocityX) + (Math.random() - 0.5) * 0.7;
+          const speed = window.innerWidth < 640 ? 43.5 + Math.random() * 13.5 : 73.5 + Math.random() * 25.5;
+          targetVelocityX = Math.cos(angle) * speed;
+          targetVelocityY = Math.sin(angle) * speed;
+          turnAt = time + 2200 + Math.random() * 2100;
+        }
+        if (x < area.minX + 54 && targetVelocityX < 0) targetVelocityX = Math.abs(targetVelocityX);
+        if (x > area.maxX - 54 && targetVelocityX > 0) targetVelocityX = -Math.abs(targetVelocityX);
+        if (y < area.minY + 54 && targetVelocityY < 0) targetVelocityY = Math.abs(targetVelocityY);
+        if (y > area.maxY - 54 && targetVelocityY > 0) targetVelocityY = -Math.abs(targetVelocityY);
+        const steering = 1 - Math.exp(-2.1 * delta);
         velocityX += (targetVelocityX - velocityX) * steering;
         velocityY += (targetVelocityY - velocityY) * steering;
-        x += velocityX * delta;
-        y += velocityY * delta;
-
-        if (x <= area.minX || x >= area.maxX) {
-          x = Math.min(area.maxX, Math.max(area.minX, x));
-          velocityX = (x <= area.minX ? 1 : -1) * Math.abs(velocityX) * 0.55;
-          targetVelocityX = (x <= area.minX ? 1 : -1) * Math.abs(targetVelocityX);
-        }
-        if (y <= area.minY || y >= area.maxY) {
-          y = Math.min(area.maxY, Math.max(area.minY, y));
-          velocityY = (y <= area.minY ? 1 : -1) * Math.abs(velocityY) * 0.55;
-          targetVelocityY = (y <= area.minY ? 1 : -1) * Math.abs(targetVelocityY);
-        }
+        x = Math.min(area.maxX, Math.max(area.minX, x + velocityX * delta));
+        y = Math.min(area.maxY, Math.max(area.minY, y + velocityY * delta));
+        button.style.left = `${x}px`;
+        button.style.top = `${y}px`;
+        button.dataset.facing = velocityX < 0 ? "left" : "right";
       }
-
-      renderPosition();
       frameId = window.requestAnimationFrame(animate);
-    }
+    };
 
-    initializePosition();
+    clampToViewport();
     frameId = window.requestAnimationFrame(animate);
     window.addEventListener("resize", clampToViewport);
-    reducedMotion.addEventListener("change", initializePosition);
 
     return () => {
       window.cancelAnimationFrame(frameId);
       window.removeEventListener("resize", clampToViewport);
-      reducedMotion.removeEventListener("change", initializePosition);
     };
   }, []);
 
-  function pause() {
-    pausedRef.current = true;
+  function startDrag(event: PointerEvent<HTMLButtonElement>) {
+    if (event.button !== 0) return;
+    const button = buttonRef.current;
+    if (!button) return;
+    draggedRef.current = false;
+    dragRef.current = { pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, left: button.offsetLeft, top: button.offsetTop };
+    button.setPointerCapture(event.pointerId);
   }
 
-  function resume() {
-    pausedRef.current = false;
+  function moveDrag(event: PointerEvent<HTMLButtonElement>) {
+    const drag = dragRef.current;
+    const button = buttonRef.current;
+    if (!drag || !button || drag.pointerId !== event.pointerId) return;
+    const deltaX = event.clientX - drag.startX;
+    const deltaY = event.clientY - drag.startY;
+    if (Math.abs(deltaX) > 4 || Math.abs(deltaY) > 4) draggedRef.current = true;
+    const maxLeft = window.innerWidth - button.offsetWidth - EDGE_GAP;
+    const maxTop = window.innerHeight - button.offsetHeight - EDGE_GAP;
+    button.style.left = `${Math.min(maxLeft, Math.max(EDGE_GAP, drag.left + deltaX))}px`;
+    button.style.top = `${Math.min(maxTop, Math.max(EDGE_GAP, drag.top + deltaY))}px`;
+  }
+
+  function endDrag(event: PointerEvent<HTMLButtonElement>) {
+    const drag = dragRef.current;
+    const button = buttonRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    if (button?.hasPointerCapture(event.pointerId)) button.releasePointerCapture(event.pointerId);
+    dragRef.current = null;
   }
 
   return (
     <button
       ref={buttonRef}
       type="button"
-      onClick={onOpen}
-      onPointerEnter={pause}
-      onPointerLeave={resume}
-      onPointerDown={pause}
-      onFocus={pause}
-      onBlur={resume}
+      onClick={() => {
+        if (draggedRef.current) {
+          draggedRef.current = false;
+          return;
+        }
+        onOpen();
+      }}
+      onPointerDown={startDrag}
+      onPointerMove={moveDrag}
+      onPointerUp={endDrag}
+      onPointerCancel={endDrag}
+      onPointerEnter={() => { hoveredRef.current = true; }}
+      onPointerLeave={() => { hoveredRef.current = false; }}
+      onFocus={() => { hoveredRef.current = true; }}
+      onBlur={() => { hoveredRef.current = false; }}
       aria-label="Mở Trợ lý Nấm F1"
       className={styles.robotButton}
     >

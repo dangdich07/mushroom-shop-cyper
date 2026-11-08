@@ -63,7 +63,7 @@ export default async function ProductDetailPage({ params }: PageProps) {
   // 3. TRA CỨU SẢN PHẨM CÙNG CHỦNG LOẠI SINH HỌC TƯƠNG ĐỒNG
   const { data: relatedProducts } = await supabaseServiceRole
     .from("products")
-    .select("*")
+    .select("*, product_variants(*)")
     .eq("category", product.category)
     .not("id", "eq", product.id)
     .limit(3);
@@ -73,14 +73,17 @@ export default async function ProductDetailPage({ params }: PageProps) {
     id: product.id,
     name: product.name,
     price: Number(product.price),
+    compareAtPrice: product.compare_at_price === null ? undefined : Number(product.compare_at_price),
     image: product.image,
     sku: product.sku,
     category: product.category,
     rating: Number(product.rating),
+    totalReviews: Number(product.total_reviews || reviews?.length || 0),
     in_stock: product.in_stock,
     scientificName: product.scientific_name || "",
     shortDescription: product.short_description || "",
     slug: product.slug,
+    tags: product.tags || [],
     variants: ((product.product_variants || []) as ProductVariantRow[]).filter((variant) => variant.is_active).map((variant) => ({
       id: variant.id,
       productId: variant.product_id,
@@ -105,27 +108,50 @@ export default async function ProductDetailPage({ params }: PageProps) {
     }))
   };
 
-  const formattedRelated = (relatedProducts || []).map(p => ({
-    id: p.id,
-    name: p.name,
-    price: Number(p.price),
-    image: p.image,
-    sku: p.sku,
-    category: p.category,
-    rating: Number(p.rating),
-    inStock: p.in_stock,
-    shortDescription: p.short_description || "",
-    
-    //  VÁ LỖI CHÍ MẠNG: Bơm đầy đủ lõi thuộc tính định vị để ProductCard khớp lệnh
-    slug: p.slug,
-    totalReviews: Number(p.total_reviews || 0),
-    tags: p.tags || [] // Nạp mảng tag để hiển thị nhãn Hologram góc trái thẻ
-  }));
+  const formattedRelated = (relatedProducts || []).map((relatedProduct) => {
+    const variants = ((relatedProduct.product_variants || []) as ProductVariantRow[])
+      .filter((variant) => variant.is_active)
+      .map((variant) => ({
+        id: variant.id,
+        productId: variant.product_id,
+        name: variant.name,
+        sku: variant.sku,
+        weightGrams: variant.weight_grams ?? undefined,
+        price: Number(variant.price),
+        compareAtPrice: variant.compare_at_price === null ? undefined : Number(variant.compare_at_price),
+        stockQuantity: variant.stock_quantity,
+        reservedQuantity: variant.reserved_quantity,
+        isActive: variant.is_active,
+      }));
+    const defaultVariant = variants.find(
+      (variant) => variant.stockQuantity - variant.reservedQuantity > 0,
+    ) ?? variants[0];
+
+    return {
+      id: relatedProduct.id,
+      name: relatedProduct.name,
+      price: Number(relatedProduct.price),
+      compareAtPrice: relatedProduct.compare_at_price === null ? undefined : Number(relatedProduct.compare_at_price),
+      image: relatedProduct.image,
+      sku: relatedProduct.sku,
+      category: relatedProduct.category,
+      rating: Number(relatedProduct.rating),
+      inStock: relatedProduct.in_stock,
+      shortDescription: relatedProduct.short_description || "",
+      scientificName: relatedProduct.scientific_name || undefined,
+      slug: relatedProduct.slug,
+      totalReviews: Number(relatedProduct.total_reviews || 0),
+      tags: relatedProduct.tags || [],
+      variants,
+      defaultVariant,
+    };
+  });
 
   return (
     <PageWrapper>
-      <div className="relative min-h-screen min-w-0 overflow-x-clip border-b border-white/5 py-8">
-        <Container>
+      <div className="home-bio-shell relative min-h-screen min-w-0 overflow-x-clip border-b border-primary-neon/10 py-6 sm:py-8 lg:py-10">
+        <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 h-[38rem] bg-[radial-gradient(circle_at_24%_18%,rgba(0,245,255,0.12),transparent_30%),radial-gradient(circle_at_84%_12%,rgba(139,92,246,0.09),transparent_24%)]" />
+        <Container wide className="relative z-[1]">
           <Suspense fallback={
             <div className="flex min-h-[60vh] items-center justify-center px-4 text-center font-mono text-xs text-primary-neon" role="status">
               <Activity aria-hidden="true" className="mr-2 h-5 w-5 animate-spin motion-reduce:animate-none" /> Đang giải băm cấu trúc nấm lượng tử...

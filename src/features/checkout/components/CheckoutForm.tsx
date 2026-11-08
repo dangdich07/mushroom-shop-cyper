@@ -1,6 +1,8 @@
 "use client";
 
 import type { FormEvent } from "react";
+import Image from "next/image";
+import { Package } from "lucide-react";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { CheckoutOrderSummary } from "@/components/checkout/checkout-order-summary";
@@ -126,13 +128,44 @@ export function CheckoutForm() {
   };
 
   return (
-    <form onSubmit={handleSubmitOrder} className="grid w-full min-w-0 grid-cols-1 items-start gap-8 font-mono text-xs lg:grid-cols-12" aria-busy={isPending || undefined}>
-      <div className="flex min-w-0 flex-col gap-5 lg:col-span-8">
+    <form onSubmit={handleSubmitOrder} className="checkout-form grid w-full min-w-0 grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]" aria-busy={isPending || undefined}>
+      <div className="flex min-w-0 flex-col gap-4">
         <CheckoutShippingSection addresses={savedAddresses} disabled={isPending} formData={formData} onChange={setFormData} onSelectAddress={handleSelectQuickAddress} />
         <CheckoutPaymentMethods disabled={isPending} paymentMethod={formData.paymentMethod} onChange={(paymentMethod) => setFormData({ ...formData, paymentMethod })} />
       </div>
 
-      <aside className="flex min-w-0 flex-col gap-4 lg:sticky lg:top-24 lg:col-span-4">
+      <aside className="checkout-summary flex min-w-0 flex-col gap-3 rounded-xl border border-primary-cyan/25 bg-surface-glass p-4 shadow-[0_12px_40px_rgba(0,0,0,0.08)] backdrop-blur-xl">
+        {items.length > 0 && (
+          <div className="min-w-0 border-b border-primary-cyan/15 pb-2">
+            <h2 className="mb-1 font-heading font-bold text-text-pure">Đơn hàng của bạn</h2>
+            <ul tabIndex={0} aria-label="Sản phẩm trong đơn hàng, cuộn để xem thêm" className="checkout-items divide-y divide-primary-cyan/10 rounded-md focus-visible:bio-focus">
+              {items.map((item) => (
+                <li key={item.lineId} className="flex min-w-0 items-start justify-between gap-3 py-2">
+                  <div className="relative flex h-[48px] w-[48px] shrink-0 items-center justify-center overflow-hidden rounded-md border border-primary-cyan/20 bg-primary-cyan/5">
+                    <Package aria-hidden="true" className="h-5 w-5 text-primary-cyan/60" />
+                    {item.image && (
+                      <Image
+                        key={item.image}
+                        src={item.image}
+                        alt={item.name}
+                        fill
+                        sizes="48px"
+                        unoptimized
+                        className="object-cover"
+                        onError={(event) => { event.currentTarget.style.display = "none"; }}
+                      />
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="break-words text-sm font-semibold text-text-pure">{item.name}</p>
+                    <p className="mt-1 break-words text-xs text-text-dark">{item.variantName} · Số lượng: {item.quantity}</p>
+                  </div>
+                  <span className="shrink-0 text-right text-sm font-semibold text-text-pure">{(item.price * item.quantity).toLocaleString("vi-VN")} ₫</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
         <CheckoutOrderSummary
           itemCount={items.length}
           totalQuantity={totalQuantity}

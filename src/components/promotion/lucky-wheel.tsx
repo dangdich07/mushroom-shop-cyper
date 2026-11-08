@@ -117,7 +117,7 @@ export function LuckyWheel({
   return (
     <section
       aria-labelledby="voucher-wheel-title"
-      className="glass-premium relative overflow-hidden p-5 sm:p-7"
+      className="relative min-w-0 overflow-hidden rounded-xl border border-primary-cyan/30 bg-surface-glass p-4 shadow-[0_0_32px_rgba(0,210,230,0.06)] backdrop-blur-xl"
     >
       <div className="pointer-events-none absolute -right-16 -top-16 h-40 w-40 rounded-full bg-secondary-purple/15 blur-3xl" />
       <div className="pointer-events-none absolute -bottom-20 -left-16 h-40 w-40 rounded-full bg-primary-neon/10 blur-3xl" />
@@ -126,25 +126,24 @@ export function LuckyWheel({
         <div>
           <span className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.22em] text-primary-neon">
             <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
-            Loyalty reactor
+            Phần thưởng thành viên
           </span>
           <h2
             id="voucher-wheel-title"
-            className="mt-2 font-heading text-xl font-black uppercase text-text-pure"
+            className="mt-2 font-heading text-xl font-bold text-text-pure"
           >
-            Vòng quay tích điểm
+            Vòng quay may mắn
           </h2>
-          <p className="mt-2 max-w-sm text-sm leading-6 text-text-dark">
-            Máy chủ chọn voucher và trừ điểm nguyên tử. Mỗi lượt quay được ghi
-            vào lịch sử tài khoản.
+          <p className="mt-1 max-w-sm text-xs leading-5 text-text-dark">
+            Dùng điểm Loyalty để quay voucher. Phần thưởng được lưu vào tài khoản của bạn.
           </p>
         </div>
-        <div className="border border-primary-neon/20 bg-primary-neon/5 p-2.5 text-primary-neon">
+        <div className="shrink-0 rounded-lg border border-primary-neon/20 bg-primary-neon/5 p-2.5 text-primary-neon">
           <Gift className="h-5 w-5" aria-hidden="true" />
         </div>
       </div>
 
-      <div className="relative mt-5 flex items-center justify-between border-y border-white/[0.07] py-3 font-mono text-[10px] uppercase">
+      <div className="relative mt-3 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-primary-cyan/15 bg-primary-cyan/5 px-3 py-2 text-xs">
         <span className="text-text-dark">Số dư khả dụng</span>
         <span className="flex items-center gap-1.5 font-black text-amber-300">
           <Coins className="h-3.5 w-3.5" aria-hidden="true" />
@@ -152,13 +151,13 @@ export function LuckyWheel({
         </span>
       </div>
 
-      <div className="relative mx-auto my-7 flex aspect-square w-full max-w-[310px] items-center justify-center">
+      <div className="relative mx-auto my-5 flex aspect-square w-full max-w-[280px] items-center justify-center">
         <div className="absolute -top-1 left-1/2 z-30 h-0 w-0 -translate-x-1/2 border-l-[12px] border-r-[12px] border-t-[22px] border-l-transparent border-r-transparent border-t-primary-neon drop-shadow-[0_0_10px_#00F5FF]" />
 
         <motion.div
           animate={controls}
           initial={{ rotate: 0 }}
-          className="absolute inset-0 rounded-full border-[6px] border-white/[0.06] bg-[radial-gradient(circle_at_center,#0b1120_0_29%,transparent_30%),conic-gradient(from_0deg,rgba(0,245,255,.16),rgba(139,92,246,.14),rgba(0,245,255,.06),rgba(139,92,246,.18),rgba(0,245,255,.12),rgba(139,92,246,.08))] shadow-[0_0_40px_rgba(0,245,255,.08)]"
+          className="absolute inset-0 rounded-full border-[3px] border-cyan-300/70 bg-[radial-gradient(circle_at_center,#061c30_0_25%,transparent_26%),conic-gradient(from_0deg,#08374a_0deg_60deg,#6324b2_60deg_120deg,#06334c_120deg_180deg,#382084_180deg_240deg,#074c62_240deg_300deg,#7128be_300deg_360deg)] shadow-[0_0_24px_rgba(0,210,230,0.25),inset_0_0_20px_rgba(0,210,230,0.2)]"
         >
           <div className="absolute inset-[18%] rounded-full border border-primary-neon/15" />
           {wheelOffers.map((offer, index) => {
@@ -170,9 +169,10 @@ export function LuckyWheel({
                 style={{ transform: `rotate(${angle}deg)` }}
               >
                 <div className="flex max-w-[74px] flex-col items-center gap-1 text-center">
-                  <span className="font-mono text-[9px] font-black uppercase leading-tight text-text-pure">
+                  <span className="break-all font-mono text-[9px] font-bold uppercase leading-tight text-cyan-50">
                     {offer.code}
                   </span>
+                  <span className="text-[10px] font-semibold text-cyan-100">{offer.label}</span>
                   <span
                     className={`h-1.5 w-1.5 rounded-full ${SEGMENT_COLORS[index % SEGMENT_COLORS.length]}`}
                   />
@@ -206,9 +206,9 @@ export function LuckyWheel({
         </button>
       </div>
 
-      <div aria-live="polite" className="min-h-28">
+      <div aria-live="polite" className="min-h-[76px]">
         {selectedOffer ? (
-          <div className="border border-primary-neon/25 bg-primary-neon/[0.06] p-4">
+          <div className="rounded-lg border border-primary-neon/25 bg-primary-neon/[0.06] p-3">
             <p className="font-mono text-[10px] uppercase tracking-widest text-text-dark">
               Voucher đã vào kho phần thưởng
             </p>
@@ -232,12 +232,12 @@ export function LuckyWheel({
             </div>
           </div>
         ) : errorMessage ? (
-          <div className="flex min-h-28 items-center justify-center border border-red-400/20 bg-red-400/[0.04] px-4 text-center">
+          <div className="flex min-h-[76px] items-center justify-center rounded-lg border border-red-400/20 bg-red-400/[0.04] px-4 text-center">
             <p className="text-xs leading-5 text-red-300">{errorMessage}</p>
           </div>
         ) : (
-          <div className="flex min-h-28 items-center justify-center border border-dashed border-white/10 px-4 text-center">
-            <p className="font-mono text-[10px] uppercase leading-5 tracking-wider text-text-dark">
+          <div className="flex min-h-[76px] items-center justify-center rounded-lg border border-dashed border-primary-cyan/20 px-4 text-center">
+            <p className="text-xs leading-5 text-text-dark">
               {!isAuthenticated
                 ? "Đăng nhập để truy cập ví điểm và vòng quay"
                 : !canAffordSpin

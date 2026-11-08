@@ -21,6 +21,7 @@ export interface CartItemsListProps {
 
 export interface CartVoucherPanelProps {
   appliedVoucher: Voucher | null;
+  appliedVoucherIneligibility: string | null;
   isAppliedVoucherEligible: boolean;
   isValidating: boolean;
   voucherCode: string;
@@ -40,6 +41,7 @@ export interface CartOrderSummaryProps {
   checkoutHref: CartCheckoutHref;
   discount: number;
   grandTotal: number;
+  itemCount: number;
   subtotal: number;
 }
 

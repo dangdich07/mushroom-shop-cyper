@@ -19,10 +19,12 @@ export interface ProductDetailData {
   id: string;
   name: string;
   price: number;
+  compareAtPrice?: number;
   image: string;
   sku: string;
   category: Product["category"];
   rating: number;
+  totalReviews: number;
   in_stock: boolean;
   scientificName: string;
   shortDescription: string;

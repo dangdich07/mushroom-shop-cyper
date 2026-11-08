@@ -18,11 +18,17 @@ export function BrandMark({ className, compact = false }: BrandMarkProps) {
     >
       <span
         aria-hidden="true"
-        className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-[9px] border border-primary-neon/45 bg-primary-neon/[0.08] text-primary-neon shadow-[inset_0_0_18px_rgba(0,245,255,0.08)] transition-[background-color,box-shadow,transform] duration-[var(--motion-duration-normal)] group-hover:bg-primary-neon/[0.14] group-hover:shadow-neon-cyan motion-safe:group-hover:-translate-y-0.5 motion-reduce:transform-none sm:h-10 sm:w-10 sm:rounded-[10px]"
+        className="relative flex h-10 w-11 shrink-0 items-center justify-center overflow-visible text-primary-neon drop-shadow-[0_0_8px_rgba(0,220,255,0.55)] transition-transform duration-[var(--motion-duration-normal)] motion-safe:group-hover:-translate-y-0.5 motion-reduce:transform-none sm:h-11 sm:w-12"
       >
-        <span className="absolute left-1/2 top-[8px] h-[12px] w-[23px] -translate-x-1/2 rounded-t-full rounded-b-[7px] border border-current bg-primary-neon/15 sm:top-[9px] sm:h-[13px] sm:w-[25px]" />
-        <span className="absolute left-1/2 top-[19px] h-[10px] w-[8px] -translate-x-1/2 rounded-b-[4px] border-x border-b border-current sm:top-[21px] sm:h-[11px]" />
-        <span className="absolute left-[10px] top-[13px] h-1 w-1 rounded-full bg-current shadow-[8px_0_0_currentColor] sm:left-[12px] sm:top-[15px]" />
+        <svg viewBox="0 0 80 72" className="h-full w-full overflow-visible" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="brand-halo" x1="4" y1="10" x2="76" y2="42" gradientUnits="userSpaceOnUse"><stop stopColor="#2DEBFF" /><stop offset="0.56" stopColor="#0076FF" /><stop offset="1" stopColor="#9D4DFF" /></linearGradient>
+            <linearGradient id="brand-m" x1="18" y1="28" x2="62" y2="70" gradientUnits="userSpaceOnUse"><stop stopColor="#F5FFFF" /><stop offset="0.42" stopColor="#20E5F2" /><stop offset="1" stopColor="#0076FF" /></linearGradient>
+          </defs>
+          <ellipse cx="40" cy="22" rx="34" ry="11.5" transform="rotate(-4 40 22)" stroke="url(#brand-halo)" strokeWidth="5.5" />
+          <ellipse cx="40" cy="22" rx="13" ry="3.6" transform="rotate(-4 40 22)" stroke="#74F7FF" strokeWidth="3" />
+          <path d="M20 66L25.5 34H33L40 48L47 34H54.5L60 66H51.5L49 47L41.5 61H38.5L31 47L28.5 66H20Z" fill="url(#brand-m)" stroke="#9DFBFF" strokeWidth="0.8" strokeLinejoin="round" />
+        </svg>
       </span>
       {!compact && (
         <span className="font-heading text-sm font-bold tracking-[-0.035em] text-text-pure sm:text-lg xl:text-xl">
