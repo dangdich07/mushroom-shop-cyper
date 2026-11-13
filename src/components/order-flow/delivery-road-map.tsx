@@ -260,7 +260,7 @@ function DeliveryRoadMapInstance({ status, usesBike, onRetry }: DeliveryRoadMapP
       const warehouseMarker = new maplibregl.Marker({
       element: createMapMarker("Kho Hà Nội", "K", "#00d9ff"),
       anchor: "center",
-      }).setLngLat(HANOI_WAREHOUSE).addTo(map);
+      }).setLngLat(HANOI_WAREHOUSE).addTo(map!);
       warehouseMarker.remove();
     }
 
