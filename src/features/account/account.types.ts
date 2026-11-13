@@ -3,6 +3,7 @@ export interface AccountOrder {
   createdAt: string;
   status: string;
   grandTotal: number;
+  productName: string;
 }
 
 export interface AccountNotification {

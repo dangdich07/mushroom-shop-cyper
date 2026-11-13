@@ -4,6 +4,7 @@ import { formatVND } from "@/lib/utils";
 export interface AccountOrderListItem {
   amount: number;
   id: string;
+  productName: string;
   status: string;
   timeStamp: string;
   trackingHref: string;
@@ -32,9 +33,10 @@ export function AccountOrderList({ orders }: AccountOrderListProps) {
           <div className="flex min-w-0 flex-col gap-4 md:flex-row md:items-center">
             <div className="min-w-0 flex-1">
               <div className="flex min-w-0 flex-wrap items-center gap-2">
-                <h2 className="min-w-0 break-all font-mono text-[11px] font-bold uppercase tracking-wider text-text-pure sm:text-xs">{order.id}</h2>
+                <h2 className="min-w-0 break-words font-semibold text-text-pure sm:text-sm">{order.productName}</h2>
                 <span className={`inline-flex shrink-0 border px-2 py-0.5 text-[8px] font-bold uppercase ${statusClasses(order.status)}`}>{order.status}</span>
               </div>
+              <p className="mt-1 break-all font-mono text-[9px] uppercase tracking-wide text-primary-cyan/80">Mã đơn: {order.id}</p>
               <p className="mt-1.5 break-words text-[9px] text-text-dark">{order.timeStamp}</p>
             </div>
 

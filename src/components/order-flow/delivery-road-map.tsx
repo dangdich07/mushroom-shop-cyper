@@ -15,7 +15,7 @@ type Coordinate = [longitude: number, latitude: number];
 
 const HANOI_WAREHOUSE: Coordinate = [105.8342, 21.0278];
 const THAI_NGUYEN_DESTINATION: Coordinate = [105.8542, 21.5942];
-const MAP_STYLE_URL = "https://tiles.openfreemap.org/styles/liberty";
+const MAP_STYLE_URL = "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json";
 // Serve the matching distribution unchanged: Turbopack cannot resolve the
 // package's automatic import.meta.url worker path reliably.
 const MAP_WORKER_URL = "/vendor/maplibre/6.9.0/maplibre-gl-worker.mjs";
@@ -35,13 +35,13 @@ function createMapMarker(label: string, symbol: string, accent: string) {
   marker.style.position = "relative";
   marker.style.display = "grid";
   marker.style.placeItems = "center";
-  marker.style.width = "34px";
-  marker.style.height = "34px";
+  marker.style.width = "28px";
+  marker.style.height = "28px";
   marker.style.border = `2px solid ${accent}`;
   marker.style.borderRadius = "9999px";
   marker.style.background = "#07111f";
   marker.style.color = "#ffffff";
-  marker.style.fontSize = "17px";
+  marker.style.fontSize = "13px";
   marker.style.boxShadow = `0 0 18px ${accent}88`;
   marker.style.cursor = "default";
   marker.textContent = symbol;
@@ -50,16 +50,16 @@ function createMapMarker(label: string, symbol: string, accent: string) {
   caption.textContent = label;
   caption.style.position = "absolute";
   caption.style.left = "50%";
-  caption.style.bottom = "calc(100% + 7px)";
+  caption.style.bottom = "calc(100% + 4px)";
   caption.style.transform = "translateX(-50%)";
   caption.style.width = "max-content";
-  caption.style.maxWidth = "180px";
-  caption.style.padding = "5px 8px";
+  caption.style.maxWidth = "140px";
+  caption.style.padding = "3px 6px";
   caption.style.border = `1px solid ${accent}66`;
   caption.style.background = "rgba(3, 7, 18, 0.94)";
   caption.style.color = "#ffffff";
   caption.style.fontFamily = "var(--font-jetbrains-mono), monospace";
-  caption.style.fontSize = "9px";
+  caption.style.fontSize = "8px";
   caption.style.fontWeight = "700";
   caption.style.lineHeight = "1.25";
   caption.style.textAlign = "center";
@@ -142,6 +142,8 @@ function DeliveryRoadMapInstance({ status, usesBike, onRetry }: DeliveryRoadMapP
       setMapReady(true);
     };
     const handleError = (event: maplibregl.ErrorEvent) => {
+      const errorText = event.error instanceof Error ? event.error.message : String(event.error ?? "");
+      if (/tile|\.png|openstreetmap/i.test(errorText)) return;
       console.error("Lỗi tải bản đồ:", event.error);
       if (!loaded) setMapError("Không tải được bản đồ nền. Vui lòng kiểm tra kết nối và thử lại.");
     };
@@ -254,10 +256,13 @@ function DeliveryRoadMapInstance({ status, usesBike, onRetry }: DeliveryRoadMapP
     const map = mapRef.current;
     if (!map || !mapReady) return;
 
-    const warehouseMarker = new maplibregl.Marker({
+    if (false) {
+      const warehouseMarker = new maplibregl.Marker({
       element: createMapMarker("Kho Hà Nội", "K", "#00d9ff"),
       anchor: "center",
-    }).setLngLat(HANOI_WAREHOUSE).addTo(map);
+      }).setLngLat(HANOI_WAREHOUSE).addTo(map);
+      warehouseMarker.remove();
+    }
 
     const destinationMarker = new maplibregl.Marker({
       element: createMapMarker("Điểm giao Thái Nguyên", "Đ", "#22c55e"),
@@ -265,7 +270,6 @@ function DeliveryRoadMapInstance({ status, usesBike, onRetry }: DeliveryRoadMapP
     }).setLngLat(THAI_NGUYEN_DESTINATION).addTo(map);
 
     return () => {
-      warehouseMarker.remove();
       destinationMarker.remove();
     };
   }, [mapReady]);

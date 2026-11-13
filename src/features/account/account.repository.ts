@@ -1,18 +1,39 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { AccountAddress, AccountDashboardData, AccountNotification, AccountOrder, AccountProfile } from "./account.types";
 
-type OrderRow = { id: string; created_at: string; status: string; grand_total: number | string };
+type OrderItemRow = { product_id?: string; productId?: string; name?: string; product_name?: string };
+type OrderRow = { id: string; created_at: string; status: string; grand_total: number | string; items?: unknown };
 type NotificationRow = { id: string; time: string | null; title: string; desc: string };
 type ProfileRow = { id: string; email: string | null; full_name: string | null; phone_number: string | null; lab_position: string | null; avatar_url: string | null };
 
-function mapOrder(row: OrderRow): AccountOrder {
-  return { id: row.id, createdAt: row.created_at, status: row.status, grandTotal: Number(row.grand_total) };
+function getProductIds(items: unknown): string[] {
+  if (!Array.isArray(items)) return [];
+  return items.map((item) => item as OrderItemRow).map((item) => item.product_id ?? item.productId).filter((id): id is string => Boolean(id));
+}
+
+function getProductName(items: unknown, productNames: Map<string, string>): string {
+  if (!Array.isArray(items)) return "Đơn hàng";
+  const rows = items.map((item) => item as OrderItemRow);
+  const embeddedName = rows.find((item) => item.name)?.name ?? rows.find((item) => item.product_name)?.product_name;
+  if (embeddedName) return embeddedName;
+  return rows.map((item) => productNames.get(item.product_id ?? item.productId ?? "")).find(Boolean) ?? "Sản phẩm trong đơn";
+}
+
+function mapOrder(row: OrderRow, productNames: Map<string, string>): AccountOrder {
+  return { id: row.id, createdAt: row.created_at, status: row.status, grandTotal: Number(row.grand_total), productName: getProductName(row.items, productNames) };
 }
 
 export async function getAccountOrders(client: SupabaseClient): Promise<AccountOrder[]> {
-  const { data, error } = await client.from("orders").select("id, created_at, status, grand_total").order("created_at", { ascending: false });
+  const { data, error } = await client.from("orders").select("id, created_at, status, grand_total, items").order("created_at", { ascending: false });
   if (error) throw new Error("ACCOUNT_ORDERS_QUERY_FAILED");
-  return ((data ?? []) as OrderRow[]).map(mapOrder);
+  const rows = (data ?? []) as OrderRow[];
+  const productIds = [...new Set(rows.flatMap((row) => getProductIds(row.items)))];
+  const productNames = new Map<string, string>();
+  if (productIds.length > 0) {
+    const { data: products } = await client.from("products").select("id, name").in("id", productIds);
+    for (const product of products ?? []) productNames.set(String(product.id), String(product.name));
+  }
+  return rows.map((row) => mapOrder(row, productNames));
 }
 
 export async function getAccountDashboard(client: SupabaseClient): Promise<AccountDashboardData> {

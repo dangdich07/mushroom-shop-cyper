@@ -30,9 +30,17 @@ export const ProductCard: React.FC<ProductCardProps> = ({
 }) => {
   const { addToast } = useOverlayStore();
   const wishlist = useWishlistStore();
-  const isFavorite = wishlist.isInWishlist(product.id);
+  // The wishlist is persisted in localStorage. Keep the server and the
+  // initial client render identical, then reveal the persisted state after
+  // hydration to avoid a hydration mismatch.
+  const [wishlistHydrated, setWishlistHydrated] = React.useState(false);
+  const isFavorite = wishlistHydrated && wishlist.isInWishlist(product.id);
   const cartStore = useCartStore() as unknown as ExpectedCartStoreState;
   const [homeImageFailed, setHomeImageFailed] = React.useState(false);
+
+  React.useEffect(() => {
+    setWishlistHydrated(true);
+  }, []);
 
   React.useEffect(() => {
     setHomeImageFailed(false);

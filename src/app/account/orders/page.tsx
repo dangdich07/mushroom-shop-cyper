@@ -17,7 +17,7 @@ export default function AccountOrdersPage() {
   return (
     <div className="flex w-full min-w-0 flex-col gap-5 animate-in fade-in duration-200 motion-reduce:animate-none">
       <AccountPageHeader eyebrow="Hồ sơ giao dịch" title="Nhật ký kiểm toán giao dịch" />
-      {orders.length === 0 ? <AccountStatePanel kind="EMPTY" message="Chưa phát sinh bản ghi vận đơn nào." /> : <AccountOrderList orders={orders.map((order) => ({ id: order.id, timeStamp: order.createdAt, status: order.status, amount: order.grandTotal, trackingHref: `/track-order?id=${order.id}` }))} />}
+      {orders.length === 0 ? <AccountStatePanel kind="EMPTY" message="Chưa phát sinh bản ghi vận đơn nào." /> : <AccountOrderList orders={orders.map((order) => ({ id: order.id, productName: order.productName, timeStamp: order.createdAt, status: order.status, amount: order.grandTotal, trackingHref: `/track-order?id=${order.id}` }))} />}
     </div>
   );
 }
